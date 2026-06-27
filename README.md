@@ -87,6 +87,34 @@ Docker notes:
 - If you change the Docker port, update both `ports` and `MAM_SPENDER_PORT` in `docker-compose.yml`.
 - The published image is built automatically from the GitHub repo and published as `ghcr.io/plungis/mam-spender-web-edition:latest`.
 
+### Installing on Unraid (manual template, not in Community Apps)
+
+**Using a downloaded template (recommended):**
+
+1. Download the `mam-spender-web-edition.xml`
+2. Open a terminal (or use the Unraid web terminal) and run:
+   ```bash
+   cp /boot/mam-spender-web-edition.xml /boot/config/plugins/dockerMan/templates-user/
+   ```
+3. Go to the **Docker** tab, click **Add Container**. The template will appear in the **Template** dropdown — select it, adjust any settings, then click **Apply**.
+4. After it starts, place your `MAM.cookies` file in the mapped host path, then restart the container if needed.
+
+**Uploading via the Unraid web UI:**
+
+1. In the Unraid web interface, go to **Main** → **Boot Device** → **Flash**.
+2. Click the **Flash** icon, then scroll down to the **Files** section.
+3. Navigate into `config/plugins/dockerMan/templates-user/`, click **Upload**, and select the `mam-spender-web-edition.xml` file.
+4. Go to the **Docker** tab, click **Add Container**, select the template from the dropdown, adjust settings, and click **Apply**.
+
+**Creating a container manually:**
+
+1. From the **Docker** tab, click **Add Container**.
+2. Set **Repository**: `ghcr.io/plungis/mam-spender-web-edition:latest`
+3. Set a **Host Port** (e.g., `8765`) and map it to **Container Port** `8765`.
+4. Add a **Path** mapping: **Container Path**: `/app/data`, **Host Path**: `/mnt/user/appdata/mam-spender` (or similar).
+5. Click **Apply** to create the container.
+6. After it starts, place your `MAM.cookies` file in the mapped host path, then restart the container.
+
 ## Behavior
 
 - Checks your MAM account using your Mam Session_ID.
