@@ -51,7 +51,7 @@ Use Check File to confirm the path can be read before starting the schedule.&#13
 &#13;
 Use Browse File to open a native file picker and save the selected cookie/export path automatically.</Requires>
   <Config Name="MAM_SPENDER_PORT" Target="8765" Default="8765" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">8765</Config>
-  <Config Name="data" Target="/data" Default="/mnt/user/appdata/mam-spender-web" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/cache/appdata/mam-spender-web</Config>
+  <Config Name="data" Target="/data" Default="/mnt/user/appdata/mam-spender-web" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false"></Config>
   <Config Name="MAM_SPENDER_HOST" Target="MAM_SPENDER_HOST" Default="0.0.0.0" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false">0.0.0.0</Config>
   <Config Name="MAM_SPENDER_OPEN_BROWSER" Target="MAM_SPENDER_OPEN_BROWSER" Default="0" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false">0</Config>
   <Config Name="MAM_SPENDER_FILE_DIALOGS" Target="MAM_SPENDER_FILE_DIALOGS" Default="0" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false">0</Config>
