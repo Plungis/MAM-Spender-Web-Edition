@@ -10,6 +10,7 @@
   --accent: #82ff7e;
   --accent-strong: #ccffcc;
   --danger: #ff5f6d;
+  --warning: #d6ff6b;
   --focus: #d6ff6b;
   --shadow: rgba(57, 255, 102, 0.22);
 }
@@ -135,6 +136,39 @@ h2::after {
 
 .version-line a:hover {
   text-decoration: underline;
+}
+
+.release-status {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.release-status a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.release-status a:hover {
+  text-decoration: underline;
+}
+
+.release-status.current {
+  color: var(--accent);
+}
+
+.release-status.update_available {
+  color: var(--warning);
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255, 222, 107, 0.2);
+}
+
+.release-status.error,
+.release-status.no_release,
+.release-status.unknown {
+  color: var(--muted);
 }
 
 .grid {

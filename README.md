@@ -90,6 +90,7 @@ Docker notes:
 ## Behavior
 
 - Checks your MAM account using your Mam Session_ID.
+- Shows the current Web Edition version and checks GitHub releases for newer versions.
 - Buys exactly 100 GiB upload credit for 50,000 points when your balance is high enough to keep your points buffer after purchase.
 - Default scan interval is 15 minutes.
 - Minimum allowed scan interval is 2 minutes.
@@ -130,3 +131,17 @@ Use `Browse File` to open a native file picker and save the selected cookie/expo
 - Browser behavior: `static/app.js`
 
 Persistent settings live in `data/config.json`.
+
+## Version Releases
+
+The app reports its current version from `APP_VERSION` in `app.py` and checks the latest GitHub release at:
+
+```text
+https://github.com/Plungis/MAM-Spender-Web-Edition/releases
+```
+
+When publishing a new version:
+
+- Update `APP_VERSION` and `APP_VERSION_LABEL` in `app.py`.
+- Create a matching GitHub release tag, such as `v1.0.1`.
+- The app will show an update notice when the latest release tag is newer than the running version.
