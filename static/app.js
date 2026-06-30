@@ -232,7 +232,7 @@ function renderRunOverview() {
 
 function renderReleaseStatus() {
   const release = state.release_status || {};
-  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.0";
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.0.1";
   const status = $("releaseStatus");
   status.className = `release-status ${release.status || "checking"}`;
   const message = release.message || "Checking latest release...";

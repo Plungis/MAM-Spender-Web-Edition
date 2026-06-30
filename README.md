@@ -2,6 +2,8 @@
 
 This is the Web Edition of MAM Spender. It uses only the Python standard library, so there is no `pip install` step.
 
+Current Web Edition version: `v1.0.1`.
+
 ## Run
 
 Double-click `Start MAM Spender Web.bat`.
