@@ -90,10 +90,11 @@ Docker notes:
 ## Behavior
 
 - Checks your MAM account using your Mam Session_ID.
-- Buys exactly 100 GiB upload credit for 50,000 points when your balance is at least 51,000 points.
+- Buys exactly 100 GiB upload credit for 50,000 points when your balance is high enough to keep your points buffer after purchase.
 - Default scan interval is 15 minutes.
 - Minimum allowed scan interval is 2 minutes.
 - Points buffer is capped at 49,000 so it cannot exceed the 50,000-point purchase cost.
+- Upload purchases require at least 51,000 points, or 50,000 plus your points buffer, whichever is higher.
 - Local server port is customizable from 1024 to 65535. Port changes apply after restarting the app.
 - Optional VIP renewal at 83 days remaining or less, enabled by default.
 - Optional Freeleech Wedge purchase before upload credit, or Freeleech-only mode.

@@ -596,15 +596,17 @@ class App:
                 self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
                 return
 
-            if points < MIN_POINTS_FOR_PURCHASE:
+            upload_purchase_threshold = max(MIN_POINTS_FOR_PURCHASE, POINTS_PER_BLOCK + settings.points_buffer)
+            if points < upload_purchase_threshold:
                 self.log(
-                    f"Not enough points ({points:,}). Need at least {MIN_POINTS_FOR_PURCHASE:,} "
-                    f"to purchase {GB_PER_BLOCK} GiB."
+                    f"Not enough points ({points:,}). Need at least {upload_purchase_threshold:,} "
+                    f"to purchase {GB_PER_BLOCK} GiB while keeping a {settings.points_buffer:,}-point buffer."
                 )
             else:
                 self.log(
                     f"{points:,} points available. Purchasing {GB_PER_BLOCK} GiB "
-                    f"of upload for {POINTS_PER_BLOCK:,} points."
+                    f"of upload for {POINTS_PER_BLOCK:,} points while keeping "
+                    f"a {settings.points_buffer:,}-point buffer."
                 )
                 self.mam_json(POINTS_URL + str(GB_PER_BLOCK), cookies)
                 points -= POINTS_PER_BLOCK
