@@ -230,6 +230,19 @@ function renderRunOverview() {
     `Current Settings: ${fmt.format(buffer)} buffer, runs every ${formatDelayLabel(delay)}`;
 }
 
+function renderReleaseStatus() {
+  const release = state.release_status || {};
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.0.1";
+  const status = $("releaseStatus");
+  status.className = `release-status ${release.status || "checking"}`;
+  const message = release.message || "Checking latest release...";
+  if (release.latest_url && ["update_available", "current", "no_release"].includes(release.status)) {
+    status.innerHTML = `<a href="${escapeHtml(release.latest_url)}" target="_blank" rel="noreferrer">${escapeHtml(message)}</a>`;
+    return;
+  }
+  status.textContent = message;
+}
+
 function render(next) {
   state = next;
   const runningText = state.automation_running ? "Running now" : state.scheduler_enabled ? "Scheduled" : "Paused";
@@ -257,6 +270,7 @@ function render(next) {
   renderSettings();
   renderRunOverview();
   renderPortStatus();
+  renderReleaseStatus();
   $("browseCookiePathBtn").disabled = !state.file_dialogs_enabled;
   $("browseCookiePathBtn").title = state.file_dialogs_enabled
     ? "Browse to a local Session_ID file"

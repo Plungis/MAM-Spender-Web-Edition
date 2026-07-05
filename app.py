@@ -18,7 +18,11 @@ from pathlib import Path
 from typing import Any
 
 
-APP_VERSION = "V1.0"
+APP_VERSION = "v1.0.1"
+APP_VERSION_LABEL = "Web Edition V1.0.1"
+GITHUB_RELEASES_URL = "https://api.github.com/repos/Plungis/MAM-Spender-Web-Edition/releases/latest"
+GITHUB_RELEASES_PAGE = "https://github.com/Plungis/MAM-Spender-Web-Edition/releases"
+VERSION_CHECK_SECONDS = 60 * 60
 HOST = os.environ.get("MAM_SPENDER_HOST", "127.0.0.1").strip() or "127.0.0.1"
 DEFAULT_PORT = 8765
 MIN_SERVER_PORT = 1024
@@ -163,11 +167,23 @@ class App:
     def __init__(self) -> None:
         DATA_DIR.mkdir(exist_ok=True)
         self.lock = threading.RLock()
+        self.version_lock = threading.RLock()
+        self.version_check_running = False
+        self.version_status = {
+            "current_version": APP_VERSION,
+            "current_label": APP_VERSION_LABEL,
+            "latest_version": None,
+            "latest_url": GITHUB_RELEASES_PAGE,
+            "status": "checking",
+            "message": "Checking latest release...",
+            "checked_at": None,
+        }
         self.state = RuntimeState()
         self.load()
         self.log("MAM Spender Web started.")
         self.scheduler = threading.Thread(target=self.scheduler_loop, daemon=True)
         self.scheduler.start()
+        self.ensure_version_check()
 
     def load(self) -> None:
         if not CONFIG_FILE.exists():
@@ -221,7 +237,118 @@ class App:
             self.state.logs.append(f"[{stamp}] {message}")
             self.state.logs = self.state.logs[-500:]
 
+    def ensure_version_check(self) -> None:
+        with self.version_lock:
+            checked_at = parse_dt(self.version_status.get("checked_at"))
+            fresh = checked_at and (now_local() - checked_at).total_seconds() < VERSION_CHECK_SECONDS
+            if fresh or self.version_check_running:
+                return
+            self.version_check_running = True
+        threading.Thread(target=self.check_latest_release, daemon=True).start()
+
+    def check_latest_release(self) -> None:
+        try:
+            request = urllib.request.Request(
+                GITHUB_RELEASES_URL,
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "MAM-Spender-Web",
+                },
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=8) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                if exc.code == 404:
+                    self.set_version_status(
+                        "no_release",
+                        "No GitHub release found yet.",
+                        latest_version=None,
+                        latest_url=GITHUB_RELEASES_PAGE,
+                    )
+                    return
+                raise
+
+            latest_version = str(payload.get("tag_name") or payload.get("name") or "").strip()
+            latest_url = str(payload.get("html_url") or GITHUB_RELEASES_PAGE)
+            if not latest_version:
+                self.set_version_status(
+                    "unknown",
+                    "Could not read latest release version.",
+                    latest_version=None,
+                    latest_url=latest_url,
+                )
+                return
+
+            if self.compare_versions(latest_version, APP_VERSION) > 0:
+                self.set_version_status(
+                    "update_available",
+                    f"Update available: {latest_version}.",
+                    latest_version=latest_version,
+                    latest_url=latest_url,
+                )
+            else:
+                self.set_version_status(
+                    "current",
+                    f"Current version: {APP_VERSION_LABEL}.",
+                    latest_version=latest_version,
+                    latest_url=latest_url,
+                )
+        except Exception as exc:
+            self.set_version_status(
+                "error",
+                f"Version check failed: {exc}",
+                latest_version=None,
+                latest_url=GITHUB_RELEASES_PAGE,
+            )
+        finally:
+            with self.version_lock:
+                self.version_check_running = False
+
+    def set_version_status(
+        self,
+        status: str,
+        message: str,
+        latest_version: str | None,
+        latest_url: str,
+    ) -> None:
+        with self.version_lock:
+            self.version_status = {
+                "current_version": APP_VERSION,
+                "current_label": APP_VERSION_LABEL,
+                "latest_version": latest_version,
+                "latest_url": latest_url,
+                "status": status,
+                "message": message,
+                "checked_at": now_local().isoformat(),
+            }
+
+    def release_status(self) -> dict[str, Any]:
+        self.ensure_version_check()
+        with self.version_lock:
+            return dict(self.version_status)
+
+    @staticmethod
+    def version_parts(value: str) -> tuple[int, ...]:
+        cleaned = re.sub(r"^[^\d]+", "", str(value).lower())
+        cleaned = re.split(r"[-+\s]", cleaned, maxsplit=1)[0]
+        parts = []
+        for item in cleaned.split("."):
+            match = re.match(r"\d+", item)
+            parts.append(int(match.group(0)) if match else 0)
+        return tuple(parts or [0])
+
+    @classmethod
+    def compare_versions(cls, left: str, right: str) -> int:
+        left_parts = list(cls.version_parts(left))
+        right_parts = list(cls.version_parts(right))
+        width = max(len(left_parts), len(right_parts))
+        left_parts.extend([0] * (width - len(left_parts)))
+        right_parts.extend([0] * (width - len(right_parts)))
+        return (left_parts > right_parts) - (left_parts < right_parts)
+
     def public_state(self) -> dict[str, Any]:
+        release_status = self.release_status()
         with self.lock:
             next_run = self.state.next_run_time
             remaining = None
@@ -232,6 +359,8 @@ class App:
             public_settings.pop("plain_session_id", None)
             return {
                 "app_version": APP_VERSION,
+                "app_version_label": APP_VERSION_LABEL,
+                "release_status": release_status,
                 "settings": public_settings,
                 "totals": asdict(self.state.totals),
                 "user": asdict(self.state.user),
@@ -596,15 +725,17 @@ class App:
                 self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
                 return
 
-            if points < MIN_POINTS_FOR_PURCHASE:
+            upload_purchase_threshold = max(MIN_POINTS_FOR_PURCHASE, POINTS_PER_BLOCK + settings.points_buffer)
+            if points < upload_purchase_threshold:
                 self.log(
-                    f"Not enough points ({points:,}). Need at least {MIN_POINTS_FOR_PURCHASE:,} "
-                    f"to purchase {GB_PER_BLOCK} GiB."
+                    f"Not enough points ({points:,}). Need at least {upload_purchase_threshold:,} "
+                    f"to purchase {GB_PER_BLOCK} GiB while keeping a {settings.points_buffer:,}-point buffer."
                 )
             else:
                 self.log(
                     f"{points:,} points available. Purchasing {GB_PER_BLOCK} GiB "
-                    f"of upload for {POINTS_PER_BLOCK:,} points."
+                    f"of upload for {POINTS_PER_BLOCK:,} points while keeping "
+                    f"a {settings.points_buffer:,}-point buffer."
                 )
                 self.mam_json(POINTS_URL + str(GB_PER_BLOCK), cookies)
                 points -= POINTS_PER_BLOCK
