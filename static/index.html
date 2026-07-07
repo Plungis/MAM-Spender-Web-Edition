@@ -79,7 +79,6 @@
               <span class="toggle-switch" aria-hidden="true"></span>
               <span>Buy max VIP when needed</span>
             </label>
-            <button type="button" class="save-setting-btn">Save</button>
           </div>
           <div class="setting-row">
             <label class="toggle-line">
@@ -87,7 +86,6 @@
               <span class="toggle-switch" aria-hidden="true"></span>
               <span>Buy Upload Credit</span>
             </label>
-            <button type="button" class="save-setting-btn">Save</button>
           </div>
           <div class="setting-row">
             <label class="toggle-line">
@@ -95,7 +93,6 @@
               <span class="toggle-switch" aria-hidden="true"></span>
               <span>Buy only Freeleech Wedges</span>
             </label>
-            <button type="button" class="save-setting-btn">Save</button>
           </div>
           <div class="setting-row">
             <label class="toggle-line">
@@ -103,9 +100,34 @@
               <span class="toggle-switch" aria-hidden="true"></span>
               <span>Alternate FL and Upload</span>
             </label>
-            <button type="button" class="save-setting-btn">Save</button>
           </div>
           <p class="small" id="alternateStatus">Alternate mode target: Freeleech Wedge.</p>
+          <div class="actions left compact-settings-actions">
+            <button type="button" class="save-setting-btn purchase-save-btn">Save Purchase Settings</button>
+          </div>
+
+          <label class="field theme-field">
+            <span>Theme</span>
+            <div class="theme-picker" role="group" aria-label="Theme">
+              <button type="button" class="theme-option active" data-theme-value="green">
+                <span class="theme-swatch green-swatch" aria-hidden="true"></span>
+                <span>Green</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="ember">
+                <span class="theme-swatch ember-swatch" aria-hidden="true"></span>
+                <span>Ember</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="modern">
+                <span class="theme-swatch modern-swatch" aria-hidden="true"></span>
+                <span>Modern</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="mouse">
+                <span class="theme-swatch mouse-swatch" aria-hidden="true"></span>
+                <span>Mouse</span>
+              </button>
+            </div>
+            <input id="themeName" type="hidden" value="green">
+          </label>
 
           <label class="field">
             <span>Points buffer</span>

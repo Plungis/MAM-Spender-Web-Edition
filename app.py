@@ -122,6 +122,7 @@ class Settings:
     alternate_fl_upload: bool = False
     alternate_next_purchase: str = "freeleech_wedge"
     fl_only: bool = False
+    theme: str = "green"
     points_buffer: int = 10000
     next_run_delay_minutes: int = 15
     server_port: int = DEFAULT_PORT
@@ -229,6 +230,8 @@ class App:
         if settings.alternate_fl_upload:
             settings.fl_only = False
             settings.buy_upload_credit = True
+        if settings.theme not in {"green", "ember", "modern", "mouse"}:
+            settings.theme = "green"
         settings.cookie_file_path = str(settings.cookie_file_path or "").strip()
         settings.plain_session_id = self.extract_mam_id(str(settings.plain_session_id or ""))
 
@@ -417,6 +420,8 @@ class App:
                     setattr(settings, key, bool(incoming[key]))
             if "alternate_next_purchase" in incoming:
                 settings.alternate_next_purchase = str(incoming["alternate_next_purchase"])
+            if "theme" in incoming:
+                settings.theme = str(incoming["theme"])
             if "points_buffer" in incoming:
                 settings.points_buffer = max(0, min(MAX_POINTS_BUFFER, int(incoming["points_buffer"])))
             if "next_run_delay_minutes" in incoming:
