@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 
-APP_VERSION = "v1.0.2"
-APP_VERSION_LABEL = "Web Edition V1.0.2"
+APP_VERSION = "v1.2.0"
+APP_VERSION_LABEL = "Web Edition V1.2.0"
 GITHUB_RELEASES_URL = "https://api.github.com/repos/Plungis/MAM-Spender-Web-Edition/releases/latest"
 GITHUB_RELEASES_PAGE = "https://github.com/Plungis/MAM-Spender-Web-Edition/releases"
 VERSION_CHECK_SECONDS = 60 * 60

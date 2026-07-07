@@ -2,7 +2,7 @@
 
 This is the Web Edition of MAM Spender. It uses only the Python standard library, so there is no `pip install` step.
 
-Current Web Edition version: `v1.0.2`.
+Current Web Edition version: `v1.2.0`.
 
 ## Run
 
@@ -145,5 +145,5 @@ https://github.com/Plungis/MAM-Spender-Web-Edition/releases
 When publishing a new version:
 
 - Update `APP_VERSION` and `APP_VERSION_LABEL` in `app.py`.
-- Create a matching GitHub release tag, such as `v1.0.1`.
+- Create a matching GitHub release tag, such as `v1.2.0`.
 - The app will show an update notice when the latest release tag is newer than the running version.
