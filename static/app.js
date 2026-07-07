@@ -3,7 +3,7 @@ let settingsDirty = false;
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat();
-const settingIds = ["buyVip", "buyFlBeforeGb", "flOnly", "pointsBuffer", "delayMinutes", "serverPort", "cookiePath"];
+const settingIds = ["buyVip", "buyUploadCredit", "flOnly", "alternateFlUpload", "pointsBuffer", "delayMinutes", "serverPort", "cookiePath"];
 const maxPointsBuffer = 49000;
 const minServerPort = 1024;
 const maxServerPort = 65535;
@@ -198,12 +198,39 @@ function settingsAreBeingEdited() {
 function renderSettings() {
   if (settingsAreBeingEdited()) return;
   $("buyVip").checked = state.settings.buy_vip;
-  $("buyFlBeforeGb").checked = state.settings.buy_fl_before_gb;
+  $("buyUploadCredit").checked = state.settings.buy_upload_credit;
   $("flOnly").checked = state.settings.fl_only;
+  $("alternateFlUpload").checked = state.settings.alternate_fl_upload;
   $("pointsBuffer").value = state.settings.points_buffer;
   $("delayMinutes").value = state.settings.next_run_delay_minutes;
   $("serverPort").value = state.settings.server_port;
   $("cookiePath").value = state.settings.cookie_file_path;
+}
+
+function enforcePurchaseMode(changedId) {
+  if (changedId === "flOnly" && $("flOnly").checked) {
+    $("alternateFlUpload").checked = false;
+    $("buyUploadCredit").checked = false;
+  }
+  if (changedId === "alternateFlUpload" && $("alternateFlUpload").checked) {
+    $("flOnly").checked = false;
+    $("buyUploadCredit").checked = true;
+  }
+  if (changedId === "buyUploadCredit" && $("buyUploadCredit").checked) {
+    $("flOnly").checked = false;
+  }
+}
+
+function renderAlternateStatus() {
+  const localAlternateOn = settingsAreBeingEdited()
+    ? $("alternateFlUpload").checked
+    : state.settings.alternate_fl_upload;
+  const next = state.settings.alternate_next_purchase === "upload_credit"
+    ? "Upload Credit"
+    : "Freeleech Wedge";
+  $("alternateStatus").textContent = localAlternateOn
+    ? `Alternate mode target: ${next}.`
+    : "Alternate mode is off.";
 }
 
 function renderPortStatus() {
@@ -232,7 +259,7 @@ function renderRunOverview() {
 
 function renderReleaseStatus() {
   const release = state.release_status || {};
-  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.0.1";
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.0.2";
   const status = $("releaseStatus");
   status.className = `release-status ${release.status || "checking"}`;
   const message = release.message || "Checking latest release...";
@@ -270,6 +297,7 @@ function render(next) {
   renderSettings();
   renderRunOverview();
   renderPortStatus();
+  renderAlternateStatus();
   renderReleaseStatus();
   $("browseCookiePathBtn").disabled = !state.file_dialogs_enabled;
   $("browseCookiePathBtn").title = state.file_dialogs_enabled
@@ -341,7 +369,8 @@ function clampNumber(value, min, max) {
 function readSettings() {
   return {
     buy_vip: $("buyVip").checked,
-    buy_fl_before_gb: $("buyFlBeforeGb").checked,
+    buy_upload_credit: $("buyUploadCredit").checked,
+    alternate_fl_upload: $("alternateFlUpload").checked,
     fl_only: $("flOnly").checked,
     points_buffer: clampNumber($("pointsBuffer").value, 0, maxPointsBuffer),
     next_run_delay_minutes: Number($("delayMinutes").value || 15),
@@ -359,7 +388,9 @@ function renderDelayEfficiency() {
   });
 }
 
-$("saveSettingsBtn").addEventListener("click", () => saveSettings().catch(alert));
+document.querySelectorAll(".save-setting-btn").forEach((button) => {
+  button.addEventListener("click", () => saveSettings().catch(alert));
+});
 $("startBtn").addEventListener("click", async () => {
   try {
     await saveSettings();
@@ -433,20 +464,24 @@ settingIds.forEach((id) => {
   const element = $(id);
   element.addEventListener("input", () => {
     settingsDirty = true;
+    enforcePurchaseMode(id);
     if (id === "pointsBuffer") {
       element.value = clampNumber(element.value, 0, maxPointsBuffer);
     }
+    if (state) renderAlternateStatus();
     if (state) renderPortStatus();
     if (state) renderRunOverview();
   });
   element.addEventListener("change", () => {
     settingsDirty = true;
+    enforcePurchaseMode(id);
     if (id === "pointsBuffer") {
       element.value = clampNumber(element.value, 0, maxPointsBuffer);
     }
     if (id === "serverPort") {
       element.value = clampNumber(element.value, minServerPort, maxServerPort);
     }
+    if (state) renderAlternateStatus();
     if (state) renderPortStatus();
     if (state) renderRunOverview();
   });

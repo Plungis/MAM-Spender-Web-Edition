@@ -278,6 +278,82 @@ dd {
   color: var(--text);
 }
 
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.toggle-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  color: var(--text);
+}
+
+.toggle-line input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle-switch {
+  position: relative;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 24px;
+  border: 1px dashed var(--dim);
+  border-radius: 999px;
+  background: #020703;
+  box-shadow: inset 0 0 12px rgba(57, 255, 102, 0.08);
+}
+
+.toggle-switch::after {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 8px rgba(95, 191, 106, 0.3);
+  content: "";
+  transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.toggle-line input:checked + .toggle-switch {
+  border-color: var(--accent-strong);
+  background: rgba(57, 255, 102, 0.12);
+}
+
+.toggle-line input:checked + .toggle-switch::after {
+  transform: translateX(23px);
+  background: var(--accent-strong);
+  box-shadow: 0 0 12px rgba(204, 255, 204, 0.34);
+}
+
+.toggle-line input:focus-visible + .toggle-switch {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.number-setting-row {
+  margin-top: 0;
+}
+
+.save-setting-btn {
+  min-width: 74px;
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
 .field {
   display: grid;
   gap: 6px;

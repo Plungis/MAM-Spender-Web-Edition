@@ -2,7 +2,7 @@
 
 This is the Web Edition of MAM Spender. It uses only the Python standard library, so there is no `pip install` step.
 
-Current Web Edition version: `v1.0.1`.
+Current Web Edition version: `v1.0.2`.
 
 ## Run
 
@@ -100,7 +100,7 @@ Docker notes:
 - Upload purchases require at least 51,000 points, or 50,000 plus your points buffer, whichever is higher.
 - Local server port is customizable from 1024 to 65535. Port changes apply after restarting the app.
 - Optional VIP renewal at 83 days remaining or less, enabled by default.
-- Optional Freeleech Wedge purchase before upload credit, or Freeleech-only mode.
+- Optional upload credit purchases, Freeleech-only mode, or alternating Freeleech Wedge and upload credit purchases.
 - Tracks cumulative upload GiB, cumulative points spent, last scan points, and points per minute.
 - Keeps a local History tab of past runs.
 - Plots each recorded spending event by category in the Graph tab.

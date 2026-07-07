@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 
-APP_VERSION = "v1.0.1"
-APP_VERSION_LABEL = "Web Edition V1.0.1"
+APP_VERSION = "v1.0.2"
+APP_VERSION_LABEL = "Web Edition V1.0.2"
 GITHUB_RELEASES_URL = "https://api.github.com/repos/Plungis/MAM-Spender-Web-Edition/releases/latest"
 GITHUB_RELEASES_PAGE = "https://github.com/Plungis/MAM-Spender-Web-Edition/releases"
 VERSION_CHECK_SECONDS = 60 * 60
@@ -118,7 +118,9 @@ def parse_dt(value: str | None) -> datetime | None:
 @dataclass
 class Settings:
     buy_vip: bool = True
-    buy_fl_before_gb: bool = False
+    buy_upload_credit: bool = True
+    alternate_fl_upload: bool = False
+    alternate_next_purchase: str = "freeleech_wedge"
     fl_only: bool = False
     points_buffer: int = 10000
     next_run_delay_minutes: int = 15
@@ -191,7 +193,12 @@ class App:
             return
         try:
             data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            self.state.settings = self.load_dataclass(Settings, data.get("settings", {}))
+            settings_data = data.get("settings", {})
+            if settings_data.get("buy_fl_before_gb") and "alternate_fl_upload" not in settings_data:
+                settings_data["alternate_fl_upload"] = True
+            if settings_data.get("fl_only") and "buy_upload_credit" not in settings_data:
+                settings_data["buy_upload_credit"] = False
+            self.state.settings = self.load_dataclass(Settings, settings_data)
             self.normalize_settings()
             self.state.totals = self.load_dataclass(Totals, data.get("totals", {}))
             self.state.last_scan_points = data.get("last_scan_points")
@@ -214,6 +221,14 @@ class App:
         settings.points_buffer = max(0, min(MAX_POINTS_BUFFER, int(settings.points_buffer)))
         settings.next_run_delay_minutes = max(MIN_INTERVAL_MINUTES, int(settings.next_run_delay_minutes))
         settings.server_port = clean_port(settings.server_port)
+        if settings.alternate_next_purchase not in {"freeleech_wedge", "upload_credit"}:
+            settings.alternate_next_purchase = "freeleech_wedge"
+        if settings.fl_only:
+            settings.buy_upload_credit = False
+            settings.alternate_fl_upload = False
+        if settings.alternate_fl_upload:
+            settings.fl_only = False
+            settings.buy_upload_credit = True
         settings.cookie_file_path = str(settings.cookie_file_path or "").strip()
         settings.plain_session_id = self.extract_mam_id(str(settings.plain_session_id or ""))
 
@@ -397,9 +412,11 @@ class App:
     def update_settings(self, incoming: dict[str, Any]) -> dict[str, Any]:
         with self.lock:
             settings = self.state.settings
-            for key in ("buy_vip", "buy_fl_before_gb", "fl_only"):
+            for key in ("buy_vip", "buy_upload_credit", "alternate_fl_upload", "fl_only"):
                 if key in incoming:
                     setattr(settings, key, bool(incoming[key]))
+            if "alternate_next_purchase" in incoming:
+                settings.alternate_next_purchase = str(incoming["alternate_next_purchase"])
             if "points_buffer" in incoming:
                 settings.points_buffer = max(0, min(MAX_POINTS_BUFFER, int(incoming["points_buffer"])))
             if "next_run_delay_minutes" in incoming:
@@ -693,7 +710,12 @@ class App:
                 else:
                     self.log(f"VIP purchase not required; current VIP period exceeds {VIP_RENEW_DAYS} days.")
 
-            should_buy_wedge = settings.buy_fl_before_gb or settings.fl_only or fl_only_override
+            alternate_target = settings.alternate_next_purchase if settings.alternate_fl_upload else ""
+            should_buy_wedge = (
+                settings.fl_only
+                or fl_only_override
+                or (settings.alternate_fl_upload and alternate_target == "freeleech_wedge")
+            )
             if should_buy_wedge:
                 if points < FL_WEDGE_COST + settings.points_buffer:
                     self.log("Not enough points to buy Freeleech Wedge (requires 50,000 + buffer).")
@@ -714,6 +736,8 @@ class App:
                             points,
                         )
                         self.log("Freeleech Wedge purchase confirmed.")
+                        if settings.alternate_fl_upload:
+                            self.set_next_alternate_purchase("upload_credit")
                     else:
                         self.log("Freeleech Wedge purchase failed (points did not decrease).")
 
@@ -722,6 +746,22 @@ class App:
                 points_end = points
                 self.update_totals(0, run_points_spent, fl_wedges_purchased, vip_purchased)
                 self.log("FL-only mode enabled; skipping upload GB purchases.")
+                self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
+                return
+
+            if settings.alternate_fl_upload and alternate_target == "freeleech_wedge":
+                run_points_spent = max(initial_points - points, 0)
+                points_end = points
+                self.update_totals(0, run_points_spent, fl_wedges_purchased, vip_purchased)
+                self.log("Alternate mode target was Freeleech Wedge; skipping upload credit this run.")
+                self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
+                return
+
+            if not settings.buy_upload_credit:
+                run_points_spent = max(initial_points - points, 0)
+                points_end = points
+                self.update_totals(0, run_points_spent, fl_wedges_purchased, vip_purchased)
+                self.log("Buy Upload Credit is off; skipping upload credit purchases.")
                 self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
                 return
 
@@ -750,6 +790,8 @@ class App:
                     points,
                 )
                 self.log(f"After purchase, points: {points:,}")
+                if settings.alternate_fl_upload:
+                    self.set_next_alternate_purchase("freeleech_wedge")
 
             run_points_spent = max(initial_points - points, 0)
             points_end = points
@@ -892,6 +934,13 @@ class App:
             self.log(f"Confirmed purchase: {gb_bought} GiB for {points_spent:,} points.")
         elif points_spent > 0:
             self.log(f"Confirmed purchase: 0 GiB upload credit for {points_spent:,} points.")
+
+    def set_next_alternate_purchase(self, next_purchase: str) -> None:
+        with self.lock:
+            self.state.settings.alternate_next_purchase = next_purchase
+            self.save()
+        label = "Upload Credit" if next_purchase == "upload_credit" else "Freeleech Wedge"
+        self.log(f"Alternate mode next target: {label}.")
 
     def log_summary(self, vip: bool, wedges: int, gb: int, points_spent: int) -> None:
         self.log("=== Summary ===")
