@@ -3,15 +3,10 @@ let settingsDirty = false;
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat();
-const settingIds = ["buyVip", "buyFlBeforeGb", "flOnly", "pointsBuffer", "delayMinutes", "serverPort", "cookiePath"];
+const settingIds = ["buyVip", "buyUploadCredit", "flOnly", "alternateFlUpload", "themeName", "pointsBuffer", "delayMinutes", "serverPort", "cookiePath"];
 const maxPointsBuffer = 49000;
 const minServerPort = 1024;
 const maxServerPort = 65535;
-const categoryColors = {
-  upload_credit: "#82ff7e",
-  freeleech_wedge: "#d6ff6b",
-  vip: "#7ee7ff"
-};
 const categoryLabels = {
   upload_credit: "Upload Credit",
   freeleech_wedge: "Freeleech Wedge",
@@ -61,6 +56,22 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function cssVar(name, fallback) {
+  const value = getComputedStyle(document.body).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function themedRgba(rgbVar, alpha) {
+  return `rgba(${cssVar(rgbVar, "57, 255, 102")}, ${alpha})`;
+}
+
+function categoryColor(category) {
+  if (category === "upload_credit") return cssVar("--accent", "#82ff7e");
+  if (category === "freeleech_wedge") return cssVar("--warning", "#d6ff6b");
+  if (category === "vip") return cssVar("--line", "#7ee7ff");
+  return cssVar("--text", "#9cff9c");
 }
 
 function renderHistory() {
@@ -114,13 +125,15 @@ function drawSpendChart() {
   const events = state.spend_events || [];
   const width = canvas.width;
   const height = canvas.height;
+  const fontFamily = getComputedStyle(document.body).fontFamily;
+  const surface = cssVar("--surface", "#020703");
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#020703";
+  ctx.fillStyle = surface;
   ctx.fillRect(0, 0, width, height);
 
   if (!events.length) {
-    ctx.fillStyle = "#5fbf6a";
-    ctx.font = '16px "Cascadia Mono", Consolas, monospace';
+    ctx.fillStyle = cssVar("--muted", "#5fbf6a");
+    ctx.font = `16px ${fontFamily}`;
     ctx.fillText("No spending events recorded yet.", 56, 70);
     $("graphLegend").innerHTML = "";
     return;
@@ -137,8 +150,8 @@ function drawSpendChart() {
   const totalPoints = slices.reduce((sum, [, points]) => sum + points, 0);
 
   if (!totalPoints) {
-    ctx.fillStyle = "#5fbf6a";
-    ctx.font = '16px "Cascadia Mono", Consolas, monospace';
+    ctx.fillStyle = cssVar("--muted", "#5fbf6a");
+    ctx.font = `16px ${fontFamily}`;
     ctx.fillText("No point spending recorded yet.", 56, 70);
     $("graphLegend").innerHTML = "";
     return;
@@ -150,7 +163,7 @@ function drawSpendChart() {
   let startAngle = -Math.PI / 2;
 
   ctx.save();
-  ctx.shadowColor = "rgba(57, 255, 102, 0.45)";
+  ctx.shadowColor = themedRgba("--glow-rgb", 0.45);
   ctx.shadowBlur = 18;
   slices.forEach(([category, points]) => {
     const angle = (points / totalPoints) * Math.PI * 2;
@@ -158,9 +171,9 @@ function drawSpendChart() {
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, startAngle + angle);
     ctx.closePath();
-    ctx.fillStyle = categoryColors[category] || "#9cff9c";
+    ctx.fillStyle = categoryColor(category);
     ctx.fill();
-    ctx.strokeStyle = "#020703";
+    ctx.strokeStyle = surface;
     ctx.lineWidth = 3;
     ctx.stroke();
     startAngle += angle;
@@ -169,25 +182,25 @@ function drawSpendChart() {
 
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius * 0.46, 0, Math.PI * 2);
-  ctx.fillStyle = "#020703";
+  ctx.fillStyle = surface;
   ctx.fill();
-  ctx.strokeStyle = "rgba(57, 255, 102, 0.48)";
+  ctx.strokeStyle = themedRgba("--glow-rgb", 0.48);
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.fillStyle = "#d9ffd8";
-  ctx.font = '22px "Cascadia Mono", Consolas, monospace';
+  ctx.fillStyle = cssVar("--accent-strong", "#d9ffd8");
+  ctx.font = `22px ${fontFamily}`;
   ctx.textAlign = "center";
   ctx.fillText(formatCompactNumber(totalPoints), centerX, centerY - 4);
-  ctx.fillStyle = "#5fbf6a";
-  ctx.font = '12px "Cascadia Mono", Consolas, monospace';
+  ctx.fillStyle = cssVar("--muted", "#5fbf6a");
+  ctx.font = `12px ${fontFamily}`;
   ctx.fillText("points spent", centerX, centerY + 18);
   ctx.textAlign = "start";
 
   $("graphLegend").innerHTML = slices.map(([category, points]) => {
     const label = categoryLabels[category] || category.replaceAll("_", " ");
     const percent = ((points / totalPoints) * 100).toFixed(points === totalPoints ? 0 : 1);
-    return `<span><i style="background:${categoryColors[category] || "#9cff9c"}"></i>${escapeHtml(label)}: ${fmt.format(points)} pts (${percent}%)</span>`;
+    return `<span><i style="background:${categoryColor(category)}"></i>${escapeHtml(label)}: ${fmt.format(points)} pts (${percent}%)</span>`;
   }).join("");
 }
 
@@ -195,15 +208,58 @@ function settingsAreBeingEdited() {
   return settingsDirty || settingIds.includes(document.activeElement?.id);
 }
 
+function applyTheme(theme) {
+  document.body.dataset.theme = theme || "green";
+  $("themeName").value = theme || "green";
+  document.querySelectorAll(".theme-option").forEach((button) => {
+    button.classList.toggle("active", button.dataset.themeValue === $("themeName").value);
+  });
+}
+
 function renderSettings() {
   if (settingsAreBeingEdited()) return;
   $("buyVip").checked = state.settings.buy_vip;
-  $("buyFlBeforeGb").checked = state.settings.buy_fl_before_gb;
+  $("buyUploadCredit").checked = state.settings.buy_upload_credit;
   $("flOnly").checked = state.settings.fl_only;
+  $("alternateFlUpload").checked = state.settings.alternate_fl_upload;
+  $("buyUploadCredit").disabled = state.settings.alternate_fl_upload;
+  $("buyUploadCredit").closest(".toggle-line").classList.toggle("locked", state.settings.alternate_fl_upload);
+  applyTheme(state.settings.theme || "green");
   $("pointsBuffer").value = state.settings.points_buffer;
   $("delayMinutes").value = state.settings.next_run_delay_minutes;
   $("serverPort").value = state.settings.server_port;
   $("cookiePath").value = state.settings.cookie_file_path;
+}
+
+function enforcePurchaseMode(changedId) {
+  if (changedId === "flOnly" && $("flOnly").checked) {
+    $("alternateFlUpload").checked = false;
+    $("buyUploadCredit").checked = false;
+  }
+  if (changedId === "alternateFlUpload" && $("alternateFlUpload").checked) {
+    $("flOnly").checked = false;
+    $("buyUploadCredit").checked = true;
+  }
+  $("buyUploadCredit").disabled = $("alternateFlUpload").checked;
+  $("buyUploadCredit").closest(".toggle-line").classList.toggle("locked", $("alternateFlUpload").checked);
+  if (changedId === "buyUploadCredit" && $("alternateFlUpload").checked) {
+    $("buyUploadCredit").checked = true;
+  }
+  if (changedId === "buyUploadCredit" && $("buyUploadCredit").checked) {
+    $("flOnly").checked = false;
+  }
+}
+
+function renderAlternateStatus() {
+  const localAlternateOn = settingsAreBeingEdited()
+    ? $("alternateFlUpload").checked
+    : state.settings.alternate_fl_upload;
+  const next = state.settings.alternate_next_purchase === "upload_credit"
+    ? "Upload Credit"
+    : "Freeleech Wedge";
+  $("alternateStatus").textContent = localAlternateOn
+    ? `Alternate mode target: ${next}.`
+    : "Alternate mode is off.";
 }
 
 function renderPortStatus() {
@@ -232,7 +288,7 @@ function renderRunOverview() {
 
 function renderReleaseStatus() {
   const release = state.release_status || {};
-  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.0.1";
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.2.0";
   const status = $("releaseStatus");
   status.className = `release-status ${release.status || "checking"}`;
   const message = release.message || "Checking latest release...";
@@ -270,6 +326,7 @@ function render(next) {
   renderSettings();
   renderRunOverview();
   renderPortStatus();
+  renderAlternateStatus();
   renderReleaseStatus();
   $("browseCookiePathBtn").disabled = !state.file_dialogs_enabled;
   $("browseCookiePathBtn").title = state.file_dialogs_enabled
@@ -323,6 +380,10 @@ async function saveSettings() {
   return api("/api/settings", readSettings());
 }
 
+async function saveTheme(theme) {
+  return api("/api/settings", { theme });
+}
+
 async function refresh() {
   try {
     const response = await fetch("/api/state");
@@ -341,8 +402,10 @@ function clampNumber(value, min, max) {
 function readSettings() {
   return {
     buy_vip: $("buyVip").checked,
-    buy_fl_before_gb: $("buyFlBeforeGb").checked,
+    buy_upload_credit: $("buyUploadCredit").checked,
+    alternate_fl_upload: $("alternateFlUpload").checked,
     fl_only: $("flOnly").checked,
+    theme: $("themeName").value,
     points_buffer: clampNumber($("pointsBuffer").value, 0, maxPointsBuffer),
     next_run_delay_minutes: Number($("delayMinutes").value || 15),
     server_port: clampNumber($("serverPort").value, minServerPort, maxServerPort),
@@ -359,7 +422,23 @@ function renderDelayEfficiency() {
   });
 }
 
-$("saveSettingsBtn").addEventListener("click", () => saveSettings().catch(alert));
+document.querySelectorAll(".save-setting-btn").forEach((button) => {
+  button.addEventListener("click", () => saveSettings().catch(alert));
+});
+
+document.querySelectorAll(".theme-option").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const theme = button.dataset.themeValue;
+    applyTheme(theme);
+    if (state) drawSpendChart();
+    try {
+      await saveTheme(theme);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+});
+
 $("startBtn").addEventListener("click", async () => {
   try {
     await saveSettings();
@@ -433,20 +512,24 @@ settingIds.forEach((id) => {
   const element = $(id);
   element.addEventListener("input", () => {
     settingsDirty = true;
+    enforcePurchaseMode(id);
     if (id === "pointsBuffer") {
       element.value = clampNumber(element.value, 0, maxPointsBuffer);
     }
+    if (state) renderAlternateStatus();
     if (state) renderPortStatus();
     if (state) renderRunOverview();
   });
   element.addEventListener("change", () => {
     settingsDirty = true;
+    enforcePurchaseMode(id);
     if (id === "pointsBuffer") {
       element.value = clampNumber(element.value, 0, maxPointsBuffer);
     }
     if (id === "serverPort") {
       element.value = clampNumber(element.value, minServerPort, maxServerPort);
     }
+    if (state) renderAlternateStatus();
     if (state) renderPortStatus();
     if (state) renderRunOverview();
   });

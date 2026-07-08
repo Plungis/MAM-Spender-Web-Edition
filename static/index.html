@@ -12,7 +12,7 @@
         <div class="brand-block">
           <h1>MAM SPENDER - WEB EDITION</h1>
           <p class="version-line">
-            <span id="appVersionLabel">Web Edition V1.0.1</span>
+            <span id="appVersionLabel">Web Edition V1.2.0</span>
             <span>|</span>
             <a href="https://github.com/Plungis/MAM-Spender" target="_blank" rel="noreferrer">(See Windows Executable Version 2.4 here)</a>
           </p>
@@ -73,16 +73,71 @@
 
         <article class="panel">
           <h2>Settings</h2>
-          <label class="check"><input id="buyVip" type="checkbox" checked> Buy max VIP when needed</label>
-          <label class="check"><input id="buyFlBeforeGb" type="checkbox"> Buy FL wedge before upload</label>
-          <label class="check"><input id="flOnly" type="checkbox"> Buy only Freeleech Wedges</label>
+          <div class="setting-row">
+            <label class="toggle-line">
+              <input id="buyVip" type="checkbox" checked>
+              <span class="toggle-switch" aria-hidden="true"></span>
+              <span>Buy max VIP when needed</span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <label class="toggle-line">
+              <input id="buyUploadCredit" type="checkbox" checked>
+              <span class="toggle-switch" aria-hidden="true"></span>
+              <span>Buy Upload Credit</span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <label class="toggle-line">
+              <input id="flOnly" type="checkbox">
+              <span class="toggle-switch" aria-hidden="true"></span>
+              <span>Buy only Freeleech Wedges</span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <label class="toggle-line">
+              <input id="alternateFlUpload" type="checkbox">
+              <span class="toggle-switch" aria-hidden="true"></span>
+              <span>Alternate FL and Upload</span>
+            </label>
+          </div>
+          <p class="small" id="alternateStatus">Alternate mode target: Freeleech Wedge.</p>
+          <div class="actions left compact-settings-actions">
+            <button type="button" class="save-setting-btn purchase-save-btn">Save Purchase Settings</button>
+          </div>
+
+          <label class="field theme-field">
+            <span>Theme</span>
+            <div class="theme-picker" role="group" aria-label="Theme">
+              <button type="button" class="theme-option active" data-theme-value="green">
+                <span class="theme-swatch green-swatch" aria-hidden="true"></span>
+                <span>Green</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="ember">
+                <span class="theme-swatch ember-swatch" aria-hidden="true"></span>
+                <span>Ember</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="modern">
+                <span class="theme-swatch modern-swatch" aria-hidden="true"></span>
+                <span>Modern</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="mouse">
+                <span class="theme-swatch mouse-swatch" aria-hidden="true"></span>
+                <span>Mouse</span>
+              </button>
+            </div>
+            <input id="themeName" type="hidden" value="green">
+          </label>
 
           <label class="field">
             <span>Points buffer</span>
-            <div class="number-control">
-              <button type="button" class="step-btn" data-target="pointsBuffer" data-step="-500">-</button>
-              <input id="pointsBuffer" type="number" min="0" max="49000" step="100" value="10000">
-              <button type="button" class="step-btn" data-target="pointsBuffer" data-step="500">+</button>
+            <div class="setting-row number-setting-row">
+              <div class="number-control">
+                <button type="button" class="step-btn" data-target="pointsBuffer" data-step="-500">-</button>
+                <input id="pointsBuffer" type="number" min="0" max="49000" step="100" value="10000">
+                <button type="button" class="step-btn" data-target="pointsBuffer" data-step="500">+</button>
+              </div>
+              <button type="button" class="save-setting-btn">Save</button>
             </div>
             <div class="quick-row">
               <button type="button" class="quick-btn" data-target="pointsBuffer" data-value="10000">10k</button>
@@ -93,10 +148,13 @@
           </label>
           <label class="field">
             <span>Next run delay (minutes)</span>
-            <div class="number-control">
-              <button type="button" class="step-btn" data-target="delayMinutes" data-step="-1">-</button>
-              <input id="delayMinutes" type="number" min="2" step="1" value="15">
-              <button type="button" class="step-btn" data-target="delayMinutes" data-step="1">+</button>
+            <div class="setting-row number-setting-row">
+              <div class="number-control">
+                <button type="button" class="step-btn" data-target="delayMinutes" data-step="-1">-</button>
+                <input id="delayMinutes" type="number" min="2" step="1" value="15">
+                <button type="button" class="step-btn" data-target="delayMinutes" data-step="1">+</button>
+              </div>
+              <button type="button" class="save-setting-btn">Save</button>
             </div>
             <div class="quick-row delay-presets">
               <button type="button" class="quick-btn metric-btn" data-target="delayMinutes" data-value="2">
@@ -118,14 +176,16 @@
           </label>
           <label class="field">
             <span>Server port</span>
-            <div class="number-control port-control">
-              <button type="button" class="step-btn" data-target="serverPort" data-step="-1">-</button>
-              <input id="serverPort" type="number" min="1024" max="65535" step="1" value="8765">
-              <button type="button" class="step-btn" data-target="serverPort" data-step="1">+</button>
+            <div class="setting-row number-setting-row">
+              <div class="number-control port-control">
+                <button type="button" class="step-btn" data-target="serverPort" data-step="-1">-</button>
+                <input id="serverPort" type="number" min="1024" max="65535" step="1" value="8765">
+                <button type="button" class="step-btn" data-target="serverPort" data-step="1">+</button>
+              </div>
+              <button type="button" class="save-setting-btn">Save</button>
             </div>
             <p class="small" id="portStatus">Current server port: 8765.</p>
           </label>
-          <button id="saveSettingsBtn">Save Settings</button>
         </article>
 
         <article class="panel">
