@@ -1,5 +1,6 @@
 let state = null;
 let settingsDirty = false;
+let chartMode = "pie";
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat();
@@ -50,6 +51,67 @@ function formatDate(value) {
   });
 }
 
+function formatUtcDate(value) {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], {
+    timeZone: "UTC",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short"
+  });
+}
+
+function formatDualTime(value) {
+  if (!value) return "N/A";
+  return `<span class="time-stack"><span>${escapeHtml(formatDate(value))}</span><small>MAM UTC: ${escapeHtml(formatUtcDate(value))}</small></span>`;
+}
+
+function nextUtcWeekday(day, hour = 0, minute = 0) {
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCSeconds(0, 0);
+  next.setUTCMinutes(minute);
+  next.setUTCHours(hour);
+  const daysAhead = (day - next.getUTCDay() + 7) % 7;
+  next.setUTCDate(next.getUTCDate() + daysAhead);
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 7);
+  return next;
+}
+
+function nextUtcMonthStart() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+}
+
+function formatCountdownTo(date) {
+  const seconds = Math.max(0, Math.floor((date.getTime() - Date.now()) / 1000));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function renderMarquee() {
+  const local = new Date();
+  const vaultReset = nextUtcMonthStart();
+  const lottoReset = nextUtcWeekday(1, 0, 0);
+  const lottoDrawing = nextUtcWeekday(1, 9, 0);
+  const pieces = [
+    `Local Time: ${local.toLocaleString()}`,
+    `MAM Server Time (UTC): ${local.toLocaleString([], { timeZone: "UTC", timeZoneName: "short" })}`,
+    `Vault donation reset: ${formatCountdownTo(vaultReset)} (${formatUtcDate(vaultReset.toISOString())})`,
+    `Lotto reset: ${formatCountdownTo(lottoReset)} (${formatUtcDate(lottoReset.toISOString())})`,
+    `Lotto drawing: ${formatCountdownTo(lottoDrawing)} (${formatUtcDate(lottoDrawing.toISOString())})`
+  ];
+  $("infoMarquee").textContent = `${pieces.join("  |  ")}  |  ${pieces.join("  |  ")}`;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -68,6 +130,12 @@ function themedRgba(rgbVar, alpha) {
 }
 
 function categoryColor(category) {
+  if (document.body.dataset.theme === "mouse") {
+    if (category === "upload_credit") return "#ff6fb8";
+    if (category === "freeleech_wedge") return "#f7d75f";
+    if (category === "vip") return "#66d9ff";
+    return "#d7d0d8";
+  }
   if (category === "upload_credit") return cssVar("--accent", "#82ff7e");
   if (category === "freeleech_wedge") return cssVar("--warning", "#d6ff6b");
   if (category === "vip") return cssVar("--line", "#7ee7ff");
@@ -87,7 +155,7 @@ function renderHistory() {
     const wedges = entry.freeleech_wedges ? fmt.format(entry.freeleech_wedges) : "-";
     const vip = entry.vip_purchased ? "Yes" : "-";
     return `<tr>
-      <td>${escapeHtml(formatDate(entry.started_at || entry.created_at))}</td>
+      <td>${formatDualTime(entry.started_at || entry.created_at)}</td>
       <td>${escapeHtml(entry.result || entry.kind || "N/A")}</td>
       <td>${points}</td>
       <td>${upload}</td>
@@ -110,7 +178,7 @@ function renderSpendRows() {
       ? "-"
       : fmt.format(event.balance_after);
     return `<tr>
-      <td>${escapeHtml(formatDate(event.created_at))}</td>
+      <td>${formatDualTime(event.created_at)}</td>
       <td>${escapeHtml(event.label || event.category)}</td>
       <td>${fmt.format(event.points_spent || 0)}</td>
       <td>${units}</td>
@@ -119,10 +187,78 @@ function renderSpendRows() {
   }).join("");
 }
 
-function drawSpendChart() {
+function renderMamUserData() {
+  const data = state.mam_user_data || {};
+  $("mamDataUsername").textContent = data.username || "N/A";
+  $("mamDataClass").textContent = data.class || "N/A";
+  $("mamDataUploaded").textContent = data.uploaded || "N/A";
+  $("mamDataDownloaded").textContent = data.downloaded || "N/A";
+  $("mamDataRatio").textContent = data.ratio || "N/A";
+  $("mamDataBonus").textContent = data.bonus || "N/A";
+  $("mamDataWedges").textContent = data.fl_wedges || "N/A";
+  $("mamDataInvites").textContent = data.invites || "N/A";
+  $("mamDataUnsats").textContent = data.unsats || "N/A";
+  $("mamDataPph").textContent = data.points_per_hour || "N/A";
+  $("mamDataClient").textContent = data.client_status || "N/A";
+
+  if (state.mam_user_error) {
+    $("mamDataStatus").textContent = `MAM user data error: ${state.mam_user_error}`;
+  } else if (state.mam_user_fetched_at) {
+    $("mamDataStatus").innerHTML = `Last loaded: ${formatDualTime(state.mam_user_fetched_at)}`;
+  } else {
+    $("mamDataStatus").textContent = "Load user data to pull the latest MAM account snapshot.";
+  }
+
+  const notifications = data.notifications || [];
+  $("mamNotifications").innerHTML = notifications.length
+    ? notifications.map((item) => `<p>${escapeHtml(item)}</p>`).join("")
+    : "";
+}
+
+function renderBonusHistory() {
+  const rows = $("bonusHistoryRows");
+  const history = state.bonus_history || [];
+  if (state.bonus_history_error) {
+    $("bonusHistoryStatus").textContent = `Bonus history error: ${state.bonus_history_error}`;
+  } else if (state.bonus_history_fetched_at) {
+    $("bonusHistoryStatus").innerHTML = `Last loaded: ${formatDualTime(state.bonus_history_fetched_at)}`;
+  } else {
+    $("bonusHistoryStatus").textContent = "Load bonus history to pull point and wedge activity from MAM.";
+  }
+  if (!history.length) {
+    rows.innerHTML = '<tr><td colspan="5">No bonus history loaded yet.</td></tr>';
+    return;
+  }
+  rows.innerHTML = history.map((entry) => {
+    const amountNumber = Number(entry.amount);
+    const amount = Number.isFinite(amountNumber) ? fmt.format(amountNumber) : "-";
+    const other = entry.other_name && entry.other_name !== "N/A"
+      ? entry.other_name
+      : entry.other_userid || "-";
+    return `<tr>
+      <td>${formatDualTime(entry.timestamp)}</td>
+      <td>${escapeHtml(entry.type || "N/A")}</td>
+      <td>${amount}</td>
+      <td>${escapeHtml(entry.title || "N/A")}</td>
+      <td>${escapeHtml(other)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function spendSlices() {
+  const totals = {};
+  (state.spend_events || []).forEach((event) => {
+    const category = event.category || "other";
+    totals[category] = (totals[category] || 0) + Number(event.points_spent || 0);
+  });
+  return Object.entries(totals)
+    .filter(([, points]) => points > 0)
+    .sort((a, b) => b[1] - a[1]);
+}
+
+function prepareChart() {
   const canvas = $("spendChart");
   const ctx = canvas.getContext("2d");
-  const events = state.spend_events || [];
   const width = canvas.width;
   const height = canvas.height;
   const fontFamily = getComputedStyle(document.body).fontFamily;
@@ -130,33 +266,61 @@ function drawSpendChart() {
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = surface;
   ctx.fillRect(0, 0, width, height);
+  return { canvas, ctx, width, height, fontFamily, surface };
+}
 
+function drawNoChartMessage(ctx, fontFamily, message) {
+  ctx.fillStyle = cssVar("--muted", "#5fbf6a");
+  ctx.font = `16px ${fontFamily}`;
+  ctx.fillText(message, 56, 70);
+  $("graphLegend").innerHTML = "";
+}
+
+function renderChartLegend(slices, totalPoints) {
+  $("graphLegend").innerHTML = slices.map(([category, points]) => {
+    const label = categoryLabels[category] || category.replaceAll("_", " ");
+    const percent = ((points / totalPoints) * 100).toFixed(points === totalPoints ? 0 : 1);
+    return `<span><i style="background:${categoryColor(category)}"></i>${escapeHtml(label)}: ${fmt.format(points)} pts (${percent}%)</span>`;
+  }).join("");
+}
+
+function drawSpendChart() {
+  if (!state) return;
+  const events = state.spend_events || [];
+  const { ctx, width, height, fontFamily, surface } = prepareChart();
+  $("chartTitle").textContent = chartMode === "bar"
+    ? "Spending Bar Chart"
+    : chartMode === "timeline"
+      ? "Spending Timeline"
+      : "Spending Pie Chart";
   if (!events.length) {
-    ctx.fillStyle = cssVar("--muted", "#5fbf6a");
-    ctx.font = `16px ${fontFamily}`;
-    ctx.fillText("No spending events recorded yet.", 56, 70);
-    $("graphLegend").innerHTML = "";
+    drawNoChartMessage(ctx, fontFamily, "No spending events recorded yet.");
     return;
   }
 
-  const totals = {};
-  events.forEach((event) => {
-    const category = event.category || "other";
-    totals[category] = (totals[category] || 0) + Number(event.points_spent || 0);
-  });
-  const slices = Object.entries(totals)
-    .filter(([, points]) => points > 0)
-    .sort((a, b) => b[1] - a[1]);
+  const slices = spendSlices();
   const totalPoints = slices.reduce((sum, [, points]) => sum + points, 0);
 
   if (!totalPoints) {
-    ctx.fillStyle = cssVar("--muted", "#5fbf6a");
-    ctx.font = `16px ${fontFamily}`;
-    ctx.fillText("No point spending recorded yet.", 56, 70);
-    $("graphLegend").innerHTML = "";
+    drawNoChartMessage(ctx, fontFamily, "No point spending recorded yet.");
     return;
   }
 
+  if (chartMode === "bar") {
+    drawBarChart(ctx, width, height, fontFamily, slices, totalPoints);
+    renderChartLegend(slices, totalPoints);
+    return;
+  }
+  if (chartMode === "timeline") {
+    drawTimelineChart(ctx, width, height, fontFamily, events);
+    renderChartLegend(slices, totalPoints);
+    return;
+  }
+  drawPieChart(ctx, width, height, fontFamily, surface, slices, totalPoints);
+  renderChartLegend(slices, totalPoints);
+}
+
+function drawPieChart(ctx, width, height, fontFamily, surface, slices, totalPoints) {
   const centerX = Math.min(width * 0.36, 320);
   const centerY = height / 2;
   const radius = Math.min(height * 0.34, width * 0.24);
@@ -196,12 +360,83 @@ function drawSpendChart() {
   ctx.font = `12px ${fontFamily}`;
   ctx.fillText("points spent", centerX, centerY + 18);
   ctx.textAlign = "start";
+}
 
-  $("graphLegend").innerHTML = slices.map(([category, points]) => {
+function drawBarChart(ctx, width, height, fontFamily, slices, totalPoints) {
+  const left = 72;
+  const top = 38;
+  const barHeight = 42;
+  const gap = 22;
+  const maxPoints = Math.max(...slices.map(([, points]) => points), 1);
+  ctx.font = `14px ${fontFamily}`;
+  slices.forEach(([category, points], index) => {
+    const y = top + index * (barHeight + gap);
     const label = categoryLabels[category] || category.replaceAll("_", " ");
-    const percent = ((points / totalPoints) * 100).toFixed(points === totalPoints ? 0 : 1);
-    return `<span><i style="background:${categoryColor(category)}"></i>${escapeHtml(label)}: ${fmt.format(points)} pts (${percent}%)</span>`;
-  }).join("");
+    const barWidth = Math.max(8, ((width - left - 180) * points) / maxPoints);
+    ctx.fillStyle = categoryColor(category);
+    ctx.shadowColor = themedRgba("--glow-rgb", 0.3);
+    ctx.shadowBlur = 12;
+    ctx.fillRect(left, y, barWidth, barHeight);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = themedRgba("--glow-rgb", 0.35);
+    ctx.strokeRect(left, y, width - left - 120, barHeight);
+    ctx.fillStyle = cssVar("--accent-strong", "#d9ffd8");
+    ctx.fillText(label, left, y - 8);
+    ctx.fillStyle = cssVar("--muted", "#5fbf6a");
+    ctx.fillText(`${fmt.format(points)} pts (${((points / totalPoints) * 100).toFixed(1)}%)`, left + barWidth + 14, y + 27);
+  });
+}
+
+function drawTimelineChart(ctx, width, height, fontFamily, events) {
+  const ordered = [...events]
+    .filter((event) => Number(event.points_spent || 0) > 0)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (!ordered.length) {
+    drawNoChartMessage(ctx, fontFamily, "No point spending recorded yet.");
+    return;
+  }
+  let cumulative = 0;
+  const points = ordered.map((event) => {
+    cumulative += Number(event.points_spent || 0);
+    return { date: new Date(event.created_at), value: cumulative, category: event.category || "other" };
+  });
+  const left = 64;
+  const right = width - 42;
+  const top = 36;
+  const bottom = height - 54;
+  const maxValue = Math.max(...points.map((point) => point.value), 1);
+  ctx.strokeStyle = themedRgba("--glow-rgb", 0.35);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(left, top, right - left, bottom - top);
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    const x = left + (points.length === 1 ? 0.5 : index / (points.length - 1)) * (right - left);
+    const y = bottom - (point.value / maxValue) * (bottom - top);
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = cssVar("--accent", "#82ff7e");
+  ctx.lineWidth = 3;
+  ctx.shadowColor = themedRgba("--glow-rgb", 0.35);
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  points.forEach((point, index) => {
+    const x = left + (points.length === 1 ? 0.5 : index / (points.length - 1)) * (right - left);
+    const y = bottom - (point.value / maxValue) * (bottom - top);
+    ctx.fillStyle = categoryColor(point.category);
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.fillStyle = cssVar("--accent-strong", "#d9ffd8");
+  ctx.font = `13px ${fontFamily}`;
+  ctx.fillText(`${fmt.format(maxValue)} cumulative pts`, left, top - 12);
+  ctx.fillStyle = cssVar("--muted", "#5fbf6a");
+  ctx.fillText(formatDate(points[0].date.toISOString()), left, bottom + 28);
+  ctx.textAlign = "right";
+  ctx.fillText(formatDate(points[points.length - 1].date.toISOString()), right, bottom + 28);
+  ctx.textAlign = "start";
 }
 
 function settingsAreBeingEdited() {
@@ -323,6 +558,7 @@ function render(next) {
   $("vipPurchases").textContent = fmt.format(state.totals.cumulative_vip_purchases || 0);
   $("nextRun").textContent = state.scheduler_enabled ? formatCountdown(state.next_run_seconds) : "Not scheduled";
 
+  renderMarquee();
   renderSettings();
   renderRunOverview();
   renderPortStatus();
@@ -351,6 +587,8 @@ function render(next) {
   }
 
   renderHistory();
+  renderMamUserData();
+  renderBonusHistory();
   renderSpendRows();
   drawSpendChart();
 }
@@ -459,6 +697,8 @@ $("runBtn").addEventListener("click", async () => {
 $("resetBtn").addEventListener("click", () => {
   if (confirm("Reset cumulative totals?")) api("/api/reset_totals", {}).catch(alert);
 });
+$("refreshMamUserBtn").addEventListener("click", () => api("/api/refresh_mam_user", {}).catch(alert));
+$("refreshBonusHistoryBtn").addEventListener("click", () => api("/api/refresh_bonus_history", {}).catch(alert));
 $("browseCookiePathBtn").addEventListener("click", async () => {
   try {
     settingsDirty = false;
@@ -504,6 +744,16 @@ document.querySelectorAll(".tab").forEach((button) => {
     document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
     button.classList.add("active");
     $(button.dataset.tab).classList.add("active");
+    if (state) drawSpendChart();
+  });
+});
+
+document.querySelectorAll(".chart-mode").forEach((button) => {
+  button.addEventListener("click", () => {
+    chartMode = button.dataset.chartMode || "pie";
+    document.querySelectorAll(".chart-mode").forEach((item) => {
+      item.classList.toggle("active", item === button);
+    });
     if (state) drawSpendChart();
   });
 });
@@ -589,5 +839,7 @@ $("thanksModal").addEventListener("click", (event) => {
 });
 
 renderDelayEfficiency();
+renderMarquee();
 refresh();
 setInterval(refresh, 1000);
+setInterval(renderMarquee, 1000);

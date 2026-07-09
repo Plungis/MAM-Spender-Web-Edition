@@ -85,6 +85,7 @@ def browser_url() -> str:
 
 MAM_BASE = "https://www.myanonamouse.net"
 MAM_API_ENDPOINT = f"{MAM_BASE}/jsonLoad.php"
+MAM_BONUS_HISTORY_ENDPOINT = f"{MAM_BASE}/json/userBonusHistory.php"
 POINTS_URL = f"{MAM_BASE}/json/bonusBuy.php/?spendtype=upload&amount="
 VIP_URL = f"{MAM_BASE}/json/bonusBuy.php/?spendtype=VIP&duration=max&_={{timestamp}}"
 FL_WEDGE_URL = f"{MAM_BASE}/json/bonusBuy.php/?spendtype=wedges&source=points&_={{timestamp}}"
@@ -164,6 +165,12 @@ class RuntimeState:
     logs: list[str] = field(default_factory=list)
     history: list[dict[str, Any]] = field(default_factory=list)
     spend_events: list[dict[str, Any]] = field(default_factory=list)
+    mam_user_data: dict[str, Any] = field(default_factory=dict)
+    mam_user_error: str = ""
+    mam_user_fetched_at: str = ""
+    bonus_history: list[dict[str, Any]] = field(default_factory=list)
+    bonus_history_error: str = ""
+    bonus_history_fetched_at: str = ""
 
 
 class App:
@@ -208,6 +215,12 @@ class App:
             self.state.scheduler_enabled = bool(data.get("scheduler_enabled", False))
             self.state.history = list(data.get("history", []))[-300:]
             self.state.spend_events = list(data.get("spend_events", []))[-1000:]
+            self.state.mam_user_data = dict(data.get("mam_user_data", {}))
+            self.state.mam_user_error = str(data.get("mam_user_error", ""))
+            self.state.mam_user_fetched_at = str(data.get("mam_user_fetched_at", ""))
+            self.state.bonus_history = list(data.get("bonus_history", []))[-200:]
+            self.state.bonus_history_error = str(data.get("bonus_history_error", ""))
+            self.state.bonus_history_fetched_at = str(data.get("bonus_history_fetched_at", ""))
         except Exception as exc:
             self.log(f"Could not load config: {exc}")
 
@@ -246,6 +259,12 @@ class App:
             "scheduler_enabled": self.state.scheduler_enabled,
             "history": self.state.history[-300:],
             "spend_events": self.state.spend_events[-1000:],
+            "mam_user_data": self.state.mam_user_data,
+            "mam_user_error": self.state.mam_user_error,
+            "mam_user_fetched_at": self.state.mam_user_fetched_at,
+            "bonus_history": self.state.bonus_history[-200:],
+            "bonus_history_error": self.state.bonus_history_error,
+            "bonus_history_fetched_at": self.state.bonus_history_fetched_at,
         }
         CONFIG_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
@@ -375,13 +394,25 @@ class App:
             cookie_path = self.state.settings.cookie_file_path
             public_settings = asdict(self.state.settings)
             public_settings.pop("plain_session_id", None)
+            local_now = now_local()
+            utc_now = datetime.now(timezone.utc)
             return {
                 "app_version": APP_VERSION,
                 "app_version_label": APP_VERSION_LABEL,
                 "release_status": release_status,
+                "server_time": {
+                    "local": local_now.isoformat(),
+                    "mam_utc": utc_now.isoformat(),
+                },
                 "settings": public_settings,
                 "totals": asdict(self.state.totals),
                 "user": asdict(self.state.user),
+                "mam_user_data": dict(self.state.mam_user_data),
+                "mam_user_error": self.state.mam_user_error,
+                "mam_user_fetched_at": self.state.mam_user_fetched_at,
+                "bonus_history": list(self.state.bonus_history[-200:]),
+                "bonus_history_error": self.state.bonus_history_error,
+                "bonus_history_fetched_at": self.state.bonus_history_fetched_at,
                 "running": self.state.running,
                 "scheduler_enabled": self.state.scheduler_enabled,
                 "paused": self.state.paused,
@@ -593,6 +624,59 @@ class App:
             self.save()
         self.log("Cumulative totals reset.")
         self.add_history({"kind": "manual", "result": "Cumulative totals reset."})
+        return self.public_state()
+
+    def refresh_mam_user_data(self) -> dict[str, Any]:
+        with self.lock:
+            settings = Settings(**asdict(self.state.settings))
+        try:
+            cookies = self.load_cookies(settings)
+            data = self.mam_json(f"{MAM_API_ENDPOINT}?clientStats&notif&snatch_summary", cookies)
+            uid = str(data.get("uid") or data.get("id") or "").strip()
+            if uid:
+                try:
+                    uid_data = self.mam_json(f"{MAM_API_ENDPOINT}?id={urllib.parse.quote(uid)}", cookies)
+                    data = {**uid_data, **data}
+                except Exception as exc:
+                    self.log(f"Loaded main MAM user data, but user-id detail failed: {exc}")
+            normalized = self.normalize_mam_user_data(data)
+            with self.lock:
+                self.state.mam_user_data = normalized
+                self.state.mam_user_error = ""
+                self.state.mam_user_fetched_at = now_local().isoformat()
+                self.save()
+            self.log("MAM user data refreshed.")
+        except Exception as exc:
+            with self.lock:
+                self.state.mam_user_error = str(exc)
+                self.state.mam_user_fetched_at = now_local().isoformat()
+                self.save()
+            self.log(f"MAM user data refresh failed: {exc}")
+        return self.public_state()
+
+    def refresh_bonus_history(self) -> dict[str, Any]:
+        with self.lock:
+            settings = Settings(**asdict(self.state.settings))
+        types = ["giftPoints", "giftWedge", "wedgePF", "wedgeGFL", "torrentThanks", "millionaires"]
+        query = urllib.parse.urlencode({"type[]": types}, doseq=True)
+        try:
+            cookies = self.load_cookies(settings)
+            data = self.mam_json(f"{MAM_BONUS_HISTORY_ENDPOINT}?{query}", cookies)
+            if not isinstance(data, list):
+                raise RuntimeError("MAM returned bonus history in an unexpected format.")
+            history = [self.normalize_bonus_history_entry(item) for item in data[:200] if isinstance(item, dict)]
+            with self.lock:
+                self.state.bonus_history = history
+                self.state.bonus_history_error = ""
+                self.state.bonus_history_fetched_at = now_local().isoformat()
+                self.save()
+            self.log(f"MAM bonus history refreshed ({len(history)} entries).")
+        except Exception as exc:
+            with self.lock:
+                self.state.bonus_history_error = str(exc)
+                self.state.bonus_history_fetched_at = now_local().isoformat()
+                self.save()
+            self.log(f"MAM bonus history refresh failed: {exc}")
         return self.public_state()
 
     def start_scheduler(self) -> dict[str, Any]:
@@ -877,6 +961,83 @@ class App:
             ratio=str(data.get("ratio") or "N/A"),
         )
 
+    @staticmethod
+    def first_value(data: dict[str, Any], *names: str) -> str:
+        lowered = {str(key).lower(): val for key, val in data.items()}
+        for name in names:
+            if name.lower() in lowered and lowered[name.lower()] not in (None, ""):
+                return str(lowered[name.lower()])
+        return "N/A"
+
+    @staticmethod
+    def strip_html(value: Any) -> str:
+        text = str(value or "")
+        text = re.sub(r"<[^>]+>", " ", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    def normalize_mam_user_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        notifications = data.get("notifs") or data.get("notifications") or []
+        if isinstance(notifications, dict):
+            notification_items = list(notifications.values())
+        elif isinstance(notifications, list):
+            notification_items = notifications
+        else:
+            notification_items = [notifications] if notifications else []
+
+        normalized_notifs = []
+        for item in notification_items[:8]:
+            if isinstance(item, dict):
+                value = item.get("message") or item.get("text") or item.get("body") or item.get("title") or item
+            else:
+                value = item
+            text = self.strip_html(value)
+            if text:
+                normalized_notifs.append(text)
+
+        client_status = self.first_value(data, "clientStatus", "client_status", "connectable")
+        if client_status == "N/A" and "clients" in data:
+            client_status = "Client details loaded"
+
+        return {
+            "username": self.first_value(data, "username"),
+            "uid": self.first_value(data, "uid", "id"),
+            "class": self.first_value(data, "classname", "class"),
+            "ratio": self.first_value(data, "ratio"),
+            "downloaded": self.first_value(data, "downloaded"),
+            "uploaded": self.first_value(data, "uploaded"),
+            "bonus": self.first_value(data, "seedbonus", "bonus", "bonuspoints", "bonus_points"),
+            "invites": self.first_value(data, "invites"),
+            "fl_wedges": self.first_value(data, "fl_wedges", "flwedge", "freeleech_wedges", "wedges"),
+            "unsats": self.first_value(data, "unsats", "unsat", "unsatisfied"),
+            "points_per_hour": self.first_value(
+                data,
+                "points_per_hour",
+                "pointsperhour",
+                "seedbonusperhour",
+                "bonus_per_hour",
+            ),
+            "client_status": client_status,
+            "notifications": normalized_notifs,
+            "loaded_keys": sorted(str(key) for key in data.keys())[:60],
+        }
+
+    def normalize_bonus_history_entry(self, item: dict[str, Any]) -> dict[str, Any]:
+        timestamp = item.get("timestamp")
+        timestamp_iso = ""
+        try:
+            timestamp_iso = datetime.fromtimestamp(float(timestamp), tz=timezone.utc).isoformat()
+        except (TypeError, ValueError, OSError):
+            timestamp_iso = str(timestamp or "")
+        return {
+            "timestamp": timestamp_iso,
+            "amount": item.get("amount"),
+            "type": str(item.get("type") or "N/A"),
+            "tid": item.get("tid"),
+            "title": str(item.get("title") or "N/A"),
+            "other_userid": item.get("other_userid"),
+            "other_name": str(item.get("other_name") or "N/A"),
+        }
+
     def get_seed_bonus(self, cookies: dict[str, str], mam_uid: str) -> int:
         data = self.mam_json(f"{MAM_API_ENDPOINT}?uid={urllib.parse.quote(mam_uid)}", cookies)
         try:
@@ -1089,6 +1250,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.write_json(APP.pause_scheduler())
             elif self.path == "/api/reset_totals":
                 self.write_json(APP.reset_totals())
+            elif self.path == "/api/refresh_mam_user":
+                self.write_json(APP.refresh_mam_user_data())
+            elif self.path == "/api/refresh_bonus_history":
+                self.write_json(APP.refresh_bonus_history())
             else:
                 self.write_json(
                     {"error": "That app action is not available. Restart MAM Spender Web and try again."},
