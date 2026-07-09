@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 
-APP_VERSION = "v1.2.0"
-APP_VERSION_LABEL = "Web Edition V1.2.0"
+APP_VERSION = "v1.3.1-beta.1"
+APP_VERSION_LABEL = "Web Edition V1.3.1 Beta 1"
 GITHUB_RELEASES_URL = "https://api.github.com/repos/Plungis/MAM-Spender-Web-Edition/releases/latest"
 GITHUB_RELEASES_PAGE = "https://github.com/Plungis/MAM-Spender-Web-Edition/releases"
 VERSION_CHECK_SECONDS = 60 * 60
@@ -218,7 +218,7 @@ class App:
             self.state.mam_user_data = dict(data.get("mam_user_data", {}))
             self.state.mam_user_error = str(data.get("mam_user_error", ""))
             self.state.mam_user_fetched_at = str(data.get("mam_user_fetched_at", ""))
-            self.state.bonus_history = list(data.get("bonus_history", []))[-200:]
+            self.state.bonus_history = list(data.get("bonus_history", []))[-500:]
             self.state.bonus_history_error = str(data.get("bonus_history_error", ""))
             self.state.bonus_history_fetched_at = str(data.get("bonus_history_fetched_at", ""))
         except Exception as exc:
@@ -262,7 +262,7 @@ class App:
             "mam_user_data": self.state.mam_user_data,
             "mam_user_error": self.state.mam_user_error,
             "mam_user_fetched_at": self.state.mam_user_fetched_at,
-            "bonus_history": self.state.bonus_history[-200:],
+            "bonus_history": self.state.bonus_history[-500:],
             "bonus_history_error": self.state.bonus_history_error,
             "bonus_history_fetched_at": self.state.bonus_history_fetched_at,
         }
@@ -410,7 +410,7 @@ class App:
                 "mam_user_data": dict(self.state.mam_user_data),
                 "mam_user_error": self.state.mam_user_error,
                 "mam_user_fetched_at": self.state.mam_user_fetched_at,
-                "bonus_history": list(self.state.bonus_history[-200:]),
+                "bonus_history": list(self.state.bonus_history[-500:]),
                 "bonus_history_error": self.state.bonus_history_error,
                 "bonus_history_fetched_at": self.state.bonus_history_fetched_at,
                 "running": self.state.running,
@@ -664,7 +664,7 @@ class App:
             data = self.mam_json(f"{MAM_BONUS_HISTORY_ENDPOINT}?{query}", cookies)
             if not isinstance(data, list):
                 raise RuntimeError("MAM returned bonus history in an unexpected format.")
-            history = [self.normalize_bonus_history_entry(item) for item in data[:200] if isinstance(item, dict)]
+            history = [self.normalize_bonus_history_entry(item) for item in data[:500] if isinstance(item, dict)]
             with self.lock:
                 self.state.bonus_history = history
                 self.state.bonus_history_error = ""
@@ -970,6 +970,15 @@ class App:
         return "N/A"
 
     @staticmethod
+    def raw_value(data: dict[str, Any], *names: str) -> Any:
+        lowered = {str(key).lower(): val for key, val in data.items()}
+        for name in names:
+            value = lowered.get(name.lower())
+            if value not in (None, ""):
+                return value
+        return None
+
+    @staticmethod
     def strip_html(value: Any) -> str:
         text = str(value or "")
         text = re.sub(r"<[^>]+>", " ", text)
@@ -1008,7 +1017,7 @@ class App:
             "bonus": self.first_value(data, "seedbonus", "bonus", "bonuspoints", "bonus_points"),
             "invites": self.first_value(data, "invites"),
             "fl_wedges": self.first_value(data, "fl_wedges", "flwedge", "freeleech_wedges", "wedges"),
-            "unsats": self.first_value(data, "unsats", "unsat", "unsatisfied"),
+            "unsats": self.format_unsats(self.raw_value(data, "unsats", "unsat", "unsatisfied")),
             "points_per_hour": self.first_value(
                 data,
                 "points_per_hour",
@@ -1037,6 +1046,23 @@ class App:
             "other_userid": item.get("other_userid"),
             "other_name": str(item.get("other_name") or "N/A"),
         }
+
+    @staticmethod
+    def format_unsats(value: Any) -> str:
+        if value in (None, ""):
+            return "N/A"
+        if isinstance(value, dict):
+            count = value.get("count")
+            limit = value.get("limit")
+            red = bool(value.get("red"))
+            if count is not None and limit is not None:
+                label = f"{count} / {limit}"
+            elif count is not None:
+                label = str(count)
+            else:
+                label = "N/A"
+            return f"{label} (flagged)" if red and label != "N/A" else label
+        return str(value)
 
     def get_seed_bonus(self, cookies: dict[str, str], mam_uid: str) -> int:
         data = self.mam_json(f"{MAM_API_ENDPOINT}?uid={urllib.parse.quote(mam_uid)}", cookies)

@@ -367,6 +367,14 @@ h2::after {
   margin-bottom: 0;
 }
 
+.panel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .panel::after {
   position: absolute;
   inset: 4px;
@@ -571,7 +579,8 @@ dd {
 
 input[type="text"],
 input[type="number"],
-input[type="password"] {
+input[type="password"],
+select {
   width: 100%;
   min-height: 38px;
   border: 1px dashed var(--dim);
@@ -581,6 +590,20 @@ input[type="password"] {
   padding: 8px 10px;
   font: inherit;
   box-shadow: inset 0 0 14px rgba(var(--glow-rgb), 0.05);
+}
+
+select {
+  width: auto;
+  min-width: 86px;
+}
+
+.inline-field {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .theme-picker {
@@ -761,6 +784,25 @@ input[type="checkbox"] {
 .actions.left {
   justify-content: flex-start;
   margin-top: 12px;
+}
+
+.pagination-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.pagination-row button {
+  min-width: 78px;
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 .stack-actions {

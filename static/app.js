@@ -1,6 +1,7 @@
 let state = null;
 let settingsDirty = false;
 let chartMode = "pie";
+let bonusHistoryPage = 1;
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat();
@@ -218,18 +219,27 @@ function renderMamUserData() {
 function renderBonusHistory() {
   const rows = $("bonusHistoryRows");
   const history = state.bonus_history || [];
+  const pageSize = Number($("bonusHistoryPageSize").value || 10);
+  const totalPages = Math.max(1, Math.ceil(history.length / pageSize));
+  bonusHistoryPage = Math.max(1, Math.min(totalPages, bonusHistoryPage));
   if (state.bonus_history_error) {
     $("bonusHistoryStatus").textContent = `Bonus history error: ${state.bonus_history_error}`;
   } else if (state.bonus_history_fetched_at) {
-    $("bonusHistoryStatus").innerHTML = `Last loaded: ${formatDualTime(state.bonus_history_fetched_at)}`;
+    $("bonusHistoryStatus").innerHTML =
+      `Last loaded: ${formatDualTime(state.bonus_history_fetched_at)}. ${fmt.format(history.length)} entries available locally.`;
   } else {
-    $("bonusHistoryStatus").textContent = "Load bonus history to pull point and wedge activity from MAM.";
+    $("bonusHistoryStatus").textContent = "Load bonus history to pull up to 500 returned point and wedge entries from MAM.";
   }
   if (!history.length) {
     rows.innerHTML = '<tr><td colspan="5">No bonus history loaded yet.</td></tr>';
+    $("bonusHistoryPageStatus").textContent = "Page 0 of 0";
+    $("bonusHistoryPrevBtn").disabled = true;
+    $("bonusHistoryNextBtn").disabled = true;
     return;
   }
-  rows.innerHTML = history.map((entry) => {
+  const start = (bonusHistoryPage - 1) * pageSize;
+  const pageRows = history.slice(start, start + pageSize);
+  rows.innerHTML = pageRows.map((entry) => {
     const amountNumber = Number(entry.amount);
     const amount = Number.isFinite(amountNumber) ? fmt.format(amountNumber) : "-";
     const other = entry.other_name && entry.other_name !== "N/A"
@@ -243,6 +253,10 @@ function renderBonusHistory() {
       <td>${escapeHtml(other)}</td>
     </tr>`;
   }).join("");
+  $("bonusHistoryPageStatus").textContent =
+    `Showing ${fmt.format(start + 1)}-${fmt.format(start + pageRows.length)} of ${fmt.format(history.length)} | Page ${bonusHistoryPage} of ${totalPages}`;
+  $("bonusHistoryPrevBtn").disabled = bonusHistoryPage <= 1;
+  $("bonusHistoryNextBtn").disabled = bonusHistoryPage >= totalPages;
 }
 
 function spendSlices() {
@@ -523,7 +537,7 @@ function renderRunOverview() {
 
 function renderReleaseStatus() {
   const release = state.release_status || {};
-  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.2.0";
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.3.1 Beta 1";
   const status = $("releaseStatus");
   status.className = `release-status ${release.status || "checking"}`;
   const message = release.message || "Checking latest release...";
@@ -698,7 +712,22 @@ $("resetBtn").addEventListener("click", () => {
   if (confirm("Reset cumulative totals?")) api("/api/reset_totals", {}).catch(alert);
 });
 $("refreshMamUserBtn").addEventListener("click", () => api("/api/refresh_mam_user", {}).catch(alert));
-$("refreshBonusHistoryBtn").addEventListener("click", () => api("/api/refresh_bonus_history", {}).catch(alert));
+$("refreshBonusHistoryBtn").addEventListener("click", () => {
+  bonusHistoryPage = 1;
+  api("/api/refresh_bonus_history", {}).catch(alert);
+});
+$("bonusHistoryPageSize").addEventListener("change", () => {
+  bonusHistoryPage = 1;
+  if (state) renderBonusHistory();
+});
+$("bonusHistoryPrevBtn").addEventListener("click", () => {
+  bonusHistoryPage = Math.max(1, bonusHistoryPage - 1);
+  if (state) renderBonusHistory();
+});
+$("bonusHistoryNextBtn").addEventListener("click", () => {
+  bonusHistoryPage += 1;
+  if (state) renderBonusHistory();
+});
 $("browseCookiePathBtn").addEventListener("click", async () => {
   try {
     settingsDirty = false;

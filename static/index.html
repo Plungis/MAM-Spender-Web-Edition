@@ -12,7 +12,7 @@
         <div class="brand-block">
           <h1>MAM SPENDER - WEB EDITION</h1>
           <p class="version-line">
-            <span id="appVersionLabel">Web Edition V1.2.0</span>
+            <span id="appVersionLabel">Web Edition V1.3.1 Beta 1</span>
             <span>|</span>
             <a href="https://github.com/Plungis/MAM-Spender" target="_blank" rel="noreferrer">(See Windows Executable Version 2.4 here)</a>
           </p>
@@ -34,9 +34,9 @@
       <div class="tab-strip">
         <nav class="tabs" aria-label="Views">
           <button class="tab active" data-tab="dashboard">Dashboard</button>
-          <button class="tab" data-tab="mamData">MAM Data</button>
-          <button class="tab" data-tab="history">History</button>
           <button class="tab" data-tab="graph">Graph</button>
+          <button class="tab" data-tab="history">History</button>
+          <button class="tab" data-tab="mamData">All MAM Data</button>
         </nav>
         <div class="marquee" aria-label="MAM timers and server time">
           <div id="infoMarquee" class="marquee-track">Loading MAM timers...</div>
@@ -271,9 +271,20 @@
         <article class="panel">
           <div class="panel-head">
             <h2>Bonus History</h2>
-            <button id="refreshBonusHistoryBtn" type="button">Load Bonus History</button>
+            <div class="panel-controls">
+              <label class="inline-field">
+                <span>Rows</span>
+                <select id="bonusHistoryPageSize">
+                  <option value="10" selected>10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <button id="refreshBonusHistoryBtn" type="button">Load Bonus History</button>
+            </div>
           </div>
-          <p class="small" id="bonusHistoryStatus">Load bonus history to pull point and wedge activity from MAM.</p>
+          <p class="small" id="bonusHistoryStatus">Load bonus history to pull up to 500 returned point and wedge entries from MAM.</p>
           <div class="table-wrap">
             <table>
               <thead>
@@ -289,6 +300,11 @@
                 <tr><td colspan="5">No bonus history loaded yet.</td></tr>
               </tbody>
             </table>
+          </div>
+          <div class="pagination-row">
+            <button id="bonusHistoryPrevBtn" type="button">Prev</button>
+            <span id="bonusHistoryPageStatus">Page 0 of 0</span>
+            <button id="bonusHistoryNextBtn" type="button">Next</button>
           </div>
         </article>
       </section>
