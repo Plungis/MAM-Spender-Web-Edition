@@ -104,8 +104,8 @@ Docker notes:
 - Tracks cumulative upload GiB, cumulative points spent, last scan points, and points per minute.
 - Keeps a local History tab of past runs.
 - Shows local time alongside MAM server time in UTC for timestamped activity.
-- Shows a dashboard marquee with MAM UTC time, Vault reset, Lotto reset, and Lotto drawing countdowns.
-- Loads optional MAM user data from `/jsonLoad.php`, including account stats, client status, and notifications when available.
+- Shows a marquee under the main tabs with MAM UTC time, daily Vault reset, Lotto reset, and Lotto drawing countdowns.
+- Loads optional MAM user data in the MAM Data tab from `/jsonLoad.php`, including account stats, client status, and notifications when available.
 - Loads optional MAM bonus history from `/json/userBonusHistory.php`.
 - Plots recorded spending events in the Graph tab with pie, bar, and timeline chart modes.
 - Tracks Freeleech Wedges bought with points and points spent on wedges.

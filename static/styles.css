@@ -279,15 +279,12 @@ h2::after {
 }
 
 .tab-strip {
-  display: grid;
-  grid-template-columns: auto minmax(220px, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: block;
   margin-bottom: 16px;
 }
 
 .tab-strip .tabs {
-  margin-bottom: 0;
+  margin-bottom: 10px;
 }
 
 .marquee {
@@ -408,6 +405,14 @@ h2::after {
 
 .compact-facts {
   gap: 7px;
+}
+
+.mam-data-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.mam-data-grid div {
+  grid-template-columns: minmax(105px, 34%) 1fr;
 }
 
 .facts div {
@@ -1014,10 +1019,6 @@ input:focus-visible {
   }
 
   .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .tab-strip {
     grid-template-columns: 1fr;
   }
 

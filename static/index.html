@@ -34,6 +34,7 @@
       <div class="tab-strip">
         <nav class="tabs" aria-label="Views">
           <button class="tab active" data-tab="dashboard">Dashboard</button>
+          <button class="tab" data-tab="mamData">MAM Data</button>
           <button class="tab" data-tab="history">History</button>
           <button class="tab" data-tab="graph">Graph</button>
         </nav>
@@ -59,28 +60,6 @@
             <div><dt>Last Points</dt><dd id="lastPoints">N/A</dd></div>
             <div><dt>Points/Min</dt><dd id="pointsPerMin">N/A</dd></div>
           </dl>
-        </article>
-
-        <article class="panel">
-          <h2>MAM User Data</h2>
-          <dl class="facts compact-facts">
-            <div><dt>Username</dt><dd id="mamDataUsername">N/A</dd></div>
-            <div><dt>Class</dt><dd id="mamDataClass">N/A</dd></div>
-            <div><dt>Uploaded</dt><dd id="mamDataUploaded">N/A</dd></div>
-            <div><dt>Downloaded</dt><dd id="mamDataDownloaded">N/A</dd></div>
-            <div><dt>Ratio</dt><dd id="mamDataRatio">N/A</dd></div>
-            <div><dt>Bonus</dt><dd id="mamDataBonus">N/A</dd></div>
-            <div><dt>FL Wedges</dt><dd id="mamDataWedges">N/A</dd></div>
-            <div><dt>Invites</dt><dd id="mamDataInvites">N/A</dd></div>
-            <div><dt>Unsats</dt><dd id="mamDataUnsats">N/A</dd></div>
-            <div><dt>Points/Hr</dt><dd id="mamDataPph">N/A</dd></div>
-            <div><dt>Client</dt><dd id="mamDataClient">N/A</dd></div>
-          </dl>
-          <p class="small" id="mamDataStatus">Load user data to pull the latest MAM account snapshot.</p>
-          <div id="mamNotifications" class="notice-list"></div>
-          <div class="actions left">
-            <button id="refreshMamUserBtn" type="button">Load User Data</button>
-          </div>
         </article>
 
         <article class="panel">
@@ -241,6 +220,30 @@
             <a class="linkBtn" href="https://www.myanonamouse.net/play_lotto.php" target="_blank" rel="noreferrer">MAM Lotto</a>
             <a class="linkBtn" href="https://www.myanonamouse.net/millionaires/donate.php" target="_blank" rel="noreferrer">Millionaire's Vault</a>
           </div>
+        </article>
+      </section>
+
+      <section id="mamData" class="tab-panel">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>MAM User Data</h2>
+            <button id="refreshMamUserBtn" type="button">Load User Data</button>
+          </div>
+          <dl class="facts mam-data-grid">
+            <div><dt>Username</dt><dd id="mamDataUsername">N/A</dd></div>
+            <div><dt>Class</dt><dd id="mamDataClass">N/A</dd></div>
+            <div><dt>Uploaded</dt><dd id="mamDataUploaded">N/A</dd></div>
+            <div><dt>Downloaded</dt><dd id="mamDataDownloaded">N/A</dd></div>
+            <div><dt>Ratio</dt><dd id="mamDataRatio">N/A</dd></div>
+            <div><dt>Bonus</dt><dd id="mamDataBonus">N/A</dd></div>
+            <div><dt>FL Wedges</dt><dd id="mamDataWedges">N/A</dd></div>
+            <div><dt>Invites</dt><dd id="mamDataInvites">N/A</dd></div>
+            <div><dt>Unsats</dt><dd id="mamDataUnsats">N/A</dd></div>
+            <div><dt>Points/Hr</dt><dd id="mamDataPph">N/A</dd></div>
+            <div><dt>Client</dt><dd id="mamDataClient">N/A</dd></div>
+          </dl>
+          <p class="small" id="mamDataStatus">Load user data to pull the latest MAM account snapshot.</p>
+          <div id="mamNotifications" class="notice-list"></div>
         </article>
       </section>
 

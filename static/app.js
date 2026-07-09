@@ -82,9 +82,9 @@ function nextUtcWeekday(day, hour = 0, minute = 0) {
   return next;
 }
 
-function nextUtcMonthStart() {
+function nextUtcDayStart() {
   const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
 }
 
 function formatCountdownTo(date) {
@@ -99,7 +99,7 @@ function formatCountdownTo(date) {
 
 function renderMarquee() {
   const local = new Date();
-  const vaultReset = nextUtcMonthStart();
+  const vaultReset = nextUtcDayStart();
   const lottoReset = nextUtcWeekday(1, 0, 0);
   const lottoDrawing = nextUtcWeekday(1, 9, 0);
   const pieces = [
