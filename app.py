@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 
-APP_VERSION = "v1.3.1-beta.1"
-APP_VERSION_LABEL = "Web Edition V1.3.1 Beta 1"
+APP_VERSION = "v1.3.1"
+APP_VERSION_LABEL = "Web Edition V1.3.1"
 GITHUB_RELEASES_URL = "https://api.github.com/repos/Plungis/MAM-Spender-Web-Edition/releases/latest"
 GITHUB_RELEASES_PAGE = "https://github.com/Plungis/MAM-Spender-Web-Edition/releases"
 VERSION_CHECK_SECONDS = 60 * 60
@@ -631,7 +631,7 @@ class App:
             settings = Settings(**asdict(self.state.settings))
         try:
             cookies = self.load_cookies(settings)
-            data = self.mam_json(f"{MAM_API_ENDPOINT}?clientStats&notif&snatch_summary", cookies)
+            data = self.mam_json(f"{MAM_API_ENDPOINT}?notif&snatch_summary", cookies)
             uid = str(data.get("uid") or data.get("id") or "").strip()
             if uid:
                 try:
@@ -1003,10 +1003,6 @@ class App:
             if text:
                 normalized_notifs.append(text)
 
-        client_status = self.first_value(data, "clientStatus", "client_status", "connectable")
-        if client_status == "N/A" and "clients" in data:
-            client_status = "Client details loaded"
-
         return {
             "username": self.first_value(data, "username"),
             "uid": self.first_value(data, "uid", "id"),
@@ -1018,14 +1014,6 @@ class App:
             "invites": self.first_value(data, "invites"),
             "fl_wedges": self.first_value(data, "fl_wedges", "flwedge", "freeleech_wedges", "wedges"),
             "unsats": self.format_unsats(self.raw_value(data, "unsats", "unsat", "unsatisfied")),
-            "points_per_hour": self.first_value(
-                data,
-                "points_per_hour",
-                "pointsperhour",
-                "seedbonusperhour",
-                "bonus_per_hour",
-            ),
-            "client_status": client_status,
             "notifications": normalized_notifs,
             "loaded_keys": sorted(str(key) for key in data.keys())[:60],
         }

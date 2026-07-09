@@ -199,8 +199,6 @@ function renderMamUserData() {
   $("mamDataWedges").textContent = data.fl_wedges || "N/A";
   $("mamDataInvites").textContent = data.invites || "N/A";
   $("mamDataUnsats").textContent = data.unsats || "N/A";
-  $("mamDataPph").textContent = data.points_per_hour || "N/A";
-  $("mamDataClient").textContent = data.client_status || "N/A";
 
   if (state.mam_user_error) {
     $("mamDataStatus").textContent = `MAM user data error: ${state.mam_user_error}`;
@@ -537,7 +535,7 @@ function renderRunOverview() {
 
 function renderReleaseStatus() {
   const release = state.release_status || {};
-  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.3.1 Beta 1";
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.3.1";
   const status = $("releaseStatus");
   status.className = `release-status ${release.status || "checking"}`;
   const message = release.message || "Checking latest release...";

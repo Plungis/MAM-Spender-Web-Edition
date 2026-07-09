@@ -2,7 +2,7 @@
 
 This is the Web Edition of MAM Spender. It uses only the Python standard library, so there is no `pip install` step.
 
-Current Web Edition version: `v1.3.1-beta.1`.
+Current Web Edition version: `v1.3.1`.
 
 ## Run
 
@@ -105,7 +105,7 @@ Docker notes:
 - Keeps a local History tab of past runs.
 - Shows local time alongside MAM server time in UTC for timestamped activity.
 - Shows a marquee under the main tabs with MAM UTC time, daily Vault reset, Lotto reset, and Lotto drawing countdowns.
-- Loads optional MAM user data in the MAM Data tab from `/jsonLoad.php`, including account stats, client status, and notifications when available.
+- Loads optional MAM user data in the MAM Data tab from `/jsonLoad.php`, including account stats and notifications when available.
 - Loads optional MAM bonus history from `/json/userBonusHistory.php`, keeps up to 500 returned entries, and paginates them locally.
 - Plots recorded spending events in the Graph tab with pie, bar, and timeline chart modes.
 - Tracks Freeleech Wedges bought with points and points spent on wedges.
