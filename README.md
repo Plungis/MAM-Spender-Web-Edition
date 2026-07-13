@@ -123,7 +123,7 @@ Docker notes:
 
 Open MAM Security from the app, create a session, copy the long Session_ID value, paste it into the Mam Session_ID panel, and click `Save Session_ID`.
 
-MAM has a helpful Session_ID forum guide here: [https://www.myanonamouse.net/f/t/91633](https://www.myanonamouse.net/f/t/91633).
+For app support, updates, and discussion, use the MAM forum thread: [https://www.myanonamouse.net/f/t/91633](https://www.myanonamouse.net/f/t/91633).
 
 When saving a pasted Session_ID, the app asks whether you want to save it as a cookie file or store it locally in the app settings as plain text. A cookie file is recommended. Keep either option private.
 
