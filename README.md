@@ -2,7 +2,7 @@
 
 This is the Web Edition of MAM Spender. It uses only the Python standard library, so there is no `pip install` step.
 
-Current Web Edition version: `v1.3.1`.
+Current Web Edition version: `v1.4.0`.
 
 ## Run
 
@@ -11,6 +11,8 @@ Double-click `Start MAM Spender Web.bat`.
 The app opens at `http://127.0.0.1:8765` by default. Close the command window to stop it.
 
 You can change the local server port in the Settings panel. Save the new port, close the command window, then start the app again. The new address will be `http://127.0.0.1:YOUR_PORT`.
+
+You can also change the server host/IP in Settings. Keep `127.0.0.1` for same-computer access only. Use a LAN IP or `0.0.0.0` only when you want other devices to reach the app, and consider setting Allowed IPs at the same time.
 
 ## Run With Docker
 
@@ -32,6 +34,8 @@ services:
     environment:
       MAM_SPENDER_HOST: 0.0.0.0
       MAM_SPENDER_PORT: 8765
+      # Optional: restrict browser access to localhost plus these IPs/ranges.
+      # MAM_SPENDER_ALLOWED_IPS: "192.168.1.25, 192.168.1.0/24"
       MAM_SPENDER_OPEN_BROWSER: "0"
       MAM_SPENDER_FILE_DIALOGS: "0"
     restart: unless-stopped
@@ -85,6 +89,7 @@ The Docker setup stores settings and Session_ID files in the local `data` folder
 Docker notes:
 
 - The app listens on `0.0.0.0` inside Docker, but you still open it from your computer at `http://127.0.0.1:8765`.
+- If you publish the app to your LAN, set Allowed IPs in Settings or set `MAM_SPENDER_ALLOWED_IPS` in Docker. Blank Allowed IPs means any device that can reach the server can open the app.
 - Desktop file picker/save dialogs are disabled in Docker. Paste the Mam Session_ID and save it as `/app/data/MAM.cookies`, or manually place a cookie file in the mounted `data` folder and enter its container path.
 - If you change the Docker port, update both `ports` and `MAM_SPENDER_PORT` in `docker-compose.yml`.
 - The published image is built automatically from the GitHub repo and published as `ghcr.io/plungis/mam-spender-web-edition:latest`.
@@ -93,12 +98,16 @@ Docker notes:
 
 - Checks your MAM account using your Mam Session_ID.
 - Shows the current Web Edition version and checks GitHub releases for newer versions.
-- Buys exactly 100 GiB upload credit for 50,000 points when your balance is high enough to keep your points buffer after purchase.
+- Buys upload credit in 50 GiB blocks for 25,000 points per block when your balance is high enough to keep your points buffer after purchase.
+- Upload credit purchases are capped at 3 blocks per run, or 150 GiB for 75,000 points.
 - Default scan interval is 15 minutes.
 - Minimum allowed scan interval is 2 minutes.
-- Points buffer is capped at 49,000 so it cannot exceed the 50,000-point purchase cost.
-- Upload purchases require at least 51,000 points, or 50,000 plus your points buffer, whichever is higher.
+- You choose the points buffer, up to 25,000.
+- Upload purchases require at least 25,000 points plus the buffer you set.
+- Local server host/IP is customizable. Host changes apply after restarting the app.
 - Local server port is customizable from 1024 to 65535. Port changes apply after restarting the app.
+- Optional Allowed IPs can restrict browser access to exact IP addresses or CIDR ranges. Localhost is always allowed.
+- Run Log entries are saved to `data/log.txt`, capped to the most recent 2,000 lines.
 - Optional VIP renewal at 83 days remaining or less, enabled by default.
 - Optional upload credit purchases, Freeleech-only mode, or alternating Freeleech Wedge and upload credit purchases.
 - Tracks cumulative upload GiB, cumulative points spent, last scan points, and points per minute.
@@ -113,6 +122,8 @@ Docker notes:
 ## Mam Session_ID
 
 Open MAM Security from the app, create a session, copy the long Session_ID value, paste it into the Mam Session_ID panel, and click `Save Session_ID`.
+
+MAM has a helpful Session_ID forum guide here: [https://www.myanonamouse.net/f/t/91633](https://www.myanonamouse.net/f/t/91633).
 
 When saving a pasted Session_ID, the app asks whether you want to save it as a cookie file or store it locally in the app settings as plain text. A cookie file is recommended. Keep either option private.
 
@@ -137,6 +148,8 @@ Use `Browse File` to open a native file picker and save the selected cookie/expo
 - Browser behavior: `static/app.js`
 
 Persistent settings live in `data/config.json`.
+
+The latest run log is saved at `data/log.txt`.
 
 ## Version Releases
 

@@ -9,6 +9,8 @@ services:
     environment:
       MAM_SPENDER_HOST: 0.0.0.0
       MAM_SPENDER_PORT: 8765
+      # Optional: restrict browser access to localhost plus these IPs/ranges.
+      # MAM_SPENDER_ALLOWED_IPS: "192.168.1.25, 192.168.1.0/24"
       MAM_SPENDER_OPEN_BROWSER: "0"
       MAM_SPENDER_FILE_DIALOGS: "0"
     restart: unless-stopped

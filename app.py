@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import mimetypes
 import os
 import re
@@ -18,21 +19,50 @@ from pathlib import Path
 from typing import Any
 
 
-APP_VERSION = "v1.3.1"
-APP_VERSION_LABEL = "Web Edition V1.3.1"
+APP_VERSION = "v1.4.0"
+APP_VERSION_LABEL = "Web Edition V1.4.0"
 GITHUB_RELEASES_URL = "https://api.github.com/repos/Plungis/MAM-Spender-Web-Edition/releases/latest"
 GITHUB_RELEASES_PAGE = "https://github.com/Plungis/MAM-Spender-Web-Edition/releases"
 VERSION_CHECK_SECONDS = 60 * 60
-HOST = os.environ.get("MAM_SPENDER_HOST", "127.0.0.1").strip() or "127.0.0.1"
+DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 MIN_SERVER_PORT = 1024
 MAX_SERVER_PORT = 65535
+MAX_LOG_LINES = 2000
 
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
 DATA_DIR = ROOT / "data"
 CONFIG_FILE = DATA_DIR / "config.json"
 COOKIE_FILE = DATA_DIR / "MAM.cookies"
+LOG_FILE = DATA_DIR / "log.txt"
+
+
+def clean_host(value: Any, fallback: str = DEFAULT_HOST) -> str:
+    host = str(value or "").strip()
+    if not host:
+        return fallback
+    if re.match(r"^https?://", host, flags=re.IGNORECASE):
+        parsed = urllib.parse.urlparse(host)
+        host = parsed.hostname or ""
+    else:
+        host = host.split("/", 1)[0].strip()
+        if host.startswith("[") and "]" in host:
+            host = host[1:host.index("]")]
+        elif host.count(":") == 1:
+            possible_host, possible_port = host.rsplit(":", 1)
+            if possible_port.isdigit():
+                host = possible_host
+    host = host.strip("[]")
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", host):
+        return fallback
+    return host
+
+
+def clean_allowed_ips(value: Any) -> str:
+    raw = str(value or "").replace(";", ",").replace("\n", ",")
+    items = [item.strip() for item in raw.split(",") if item.strip()]
+    return ", ".join(dict.fromkeys(items))
 
 
 def clean_port(value: Any, fallback: int = DEFAULT_PORT) -> int:
@@ -56,6 +86,24 @@ def configured_port() -> int:
     return DEFAULT_PORT
 
 
+def configured_host() -> str:
+    env_host = os.environ.get("MAM_SPENDER_HOST")
+    if env_host:
+        return clean_host(env_host)
+    if CONFIG_FILE.exists():
+        try:
+            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            return clean_host(data.get("settings", {}).get("server_host"), DEFAULT_HOST)
+        except Exception:
+            return DEFAULT_HOST
+    return DEFAULT_HOST
+
+
+def configured_allowed_ips() -> str:
+    return clean_allowed_ips(os.environ.get("MAM_SPENDER_ALLOWED_IPS", ""))
+
+
+HOST = configured_host()
 PORT = configured_port()
 
 
@@ -90,13 +138,15 @@ POINTS_URL = f"{MAM_BASE}/json/bonusBuy.php/?spendtype=upload&amount="
 VIP_URL = f"{MAM_BASE}/json/bonusBuy.php/?spendtype=VIP&duration=max&_={{timestamp}}"
 FL_WEDGE_URL = f"{MAM_BASE}/json/bonusBuy.php/?spendtype=wedges&source=points&_={{timestamp}}"
 
-POINTS_PER_BLOCK = 50000
-GB_PER_BLOCK = 100
-MIN_POINTS_FOR_PURCHASE = 51000
+POINTS_PER_BLOCK = 25000
+GB_PER_BLOCK = 50
+MAX_UPLOAD_BLOCKS_PER_RUN = 3
+MAX_UPLOAD_POINTS_PER_RUN = POINTS_PER_BLOCK * MAX_UPLOAD_BLOCKS_PER_RUN
+MIN_POINTS_FOR_PURCHASE = POINTS_PER_BLOCK
 FL_WEDGE_COST = 50000
 VIP_RENEW_DAYS = 83
 MIN_INTERVAL_MINUTES = 2
-MAX_POINTS_BUFFER = 49000
+MAX_POINTS_BUFFER = 25000
 
 
 def now_local() -> datetime:
@@ -126,7 +176,9 @@ class Settings:
     theme: str = "green"
     points_buffer: int = 10000
     next_run_delay_minutes: int = 15
+    server_host: str = HOST
     server_port: int = DEFAULT_PORT
+    allowed_ips: str = configured_allowed_ips()
     cookie_file_path: str = ""
     plain_session_id: str = ""
 
@@ -234,7 +286,10 @@ class App:
         settings = self.state.settings
         settings.points_buffer = max(0, min(MAX_POINTS_BUFFER, int(settings.points_buffer)))
         settings.next_run_delay_minutes = max(MIN_INTERVAL_MINUTES, int(settings.next_run_delay_minutes))
+        settings.server_host = clean_host(settings.server_host)
         settings.server_port = clean_port(settings.server_port)
+        env_allowed = os.environ.get("MAM_SPENDER_ALLOWED_IPS")
+        settings.allowed_ips = clean_allowed_ips(env_allowed if env_allowed is not None else settings.allowed_ips)
         if settings.alternate_next_purchase not in {"freeleech_wedge", "upload_credit"}:
             settings.alternate_next_purchase = "freeleech_wedge"
         if settings.fl_only:
@@ -269,10 +324,31 @@ class App:
         CONFIG_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def log(self, message: str) -> None:
+        message = self.sanitize_log_message(message)
         with self.lock:
             stamp = now_local().strftime("%H:%M:%S")
-            self.state.logs.append(f"[{stamp}] {message}")
+            line = f"[{stamp}] {message}"
+            self.state.logs.append(line)
             self.state.logs = self.state.logs[-500:]
+            self.write_log_file(line)
+
+    @staticmethod
+    def sanitize_log_message(message: str) -> str:
+        message = re.sub(r"mam_id\s*=\s*[^;,\s]+", "mam_id=[redacted]", str(message), flags=re.IGNORECASE)
+        return re.sub(r"(Session_ID[^:]*:\s*)[A-Za-z0-9_%.-]{12,}", r"\1[redacted]", message)
+
+    def write_log_file(self, line: str) -> None:
+        try:
+            DATA_DIR.mkdir(exist_ok=True)
+            existing = LOG_FILE.read_text(encoding="utf-8", errors="ignore").splitlines() if LOG_FILE.exists() else []
+            existing.append(line)
+            LOG_FILE.write_text("\n".join(existing[-MAX_LOG_LINES:]) + "\n", encoding="utf-8")
+        except Exception:
+            pass
+
+    @staticmethod
+    def normalize_allowed_ips(value: Any) -> str:
+        return clean_allowed_ips(value)
 
     def ensure_version_check(self) -> None:
         with self.version_lock:
@@ -422,6 +498,10 @@ class App:
                 "last_scan_points": self.state.last_scan_points,
                 "points_per_min": self.state.points_per_min,
                 "active_port": PORT,
+                "active_host": HOST,
+                "active_url": browser_url(),
+                "host_from_env": bool(os.environ.get("MAM_SPENDER_HOST")),
+                "allowed_ips_from_env": os.environ.get("MAM_SPENDER_ALLOWED_IPS") is not None,
                 "cookie_exists": Path(cookie_path).expanduser().exists() if cookie_path else False,
                 "session_id_saved": bool(self.state.settings.plain_session_id),
                 "file_dialogs_enabled": FILE_DIALOGS_ENABLED,
@@ -432,12 +512,15 @@ class App:
                 "constants": {
                     "points_per_block": POINTS_PER_BLOCK,
                     "gb_per_block": GB_PER_BLOCK,
+                    "max_upload_blocks_per_run": MAX_UPLOAD_BLOCKS_PER_RUN,
+                    "max_upload_points_per_run": MAX_UPLOAD_POINTS_PER_RUN,
                     "min_points_for_purchase": MIN_POINTS_FOR_PURCHASE,
                     "fl_wedge_cost": FL_WEDGE_COST,
                     "vip_renew_days": VIP_RENEW_DAYS,
                     "min_interval_minutes": MIN_INTERVAL_MINUTES,
                     "max_points_buffer": MAX_POINTS_BUFFER,
                     "default_server_port": DEFAULT_PORT,
+                    "default_server_host": DEFAULT_HOST,
                     "min_server_port": MIN_SERVER_PORT,
                     "max_server_port": MAX_SERVER_PORT,
                 },
@@ -460,6 +543,10 @@ class App:
                 settings.next_run_delay_minutes = max(MIN_INTERVAL_MINUTES, minutes)
             if "server_port" in incoming:
                 settings.server_port = clean_port(incoming["server_port"])
+            if "server_host" in incoming:
+                settings.server_host = clean_host(incoming["server_host"])
+            if "allowed_ips" in incoming:
+                settings.allowed_ips = self.normalize_allowed_ips(incoming["allowed_ips"])
             if "cookie_file_path" in incoming:
                 path = str(incoming["cookie_file_path"]).strip()
                 settings.cookie_file_path = path
@@ -467,6 +554,28 @@ class App:
             self.save()
         self.log("Settings saved.")
         return self.public_state()
+
+    def client_allowed(self, client_ip: str) -> bool:
+        try:
+            remote = ipaddress.ip_address(client_ip)
+        except ValueError:
+            return False
+        if remote.is_loopback:
+            return True
+        with self.lock:
+            allowed = self.state.settings.allowed_ips
+        if not allowed:
+            return True
+        for item in [part.strip() for part in allowed.split(",") if part.strip()]:
+            try:
+                if "/" in item:
+                    if remote in ipaddress.ip_network(item, strict=False):
+                        return True
+                elif remote == ipaddress.ip_address(item):
+                    return True
+            except ValueError:
+                continue
+        return False
 
     def add_history(self, entry: dict[str, Any]) -> None:
         with self.lock:
@@ -757,12 +866,7 @@ class App:
                 return
             self.log("Session valid.")
 
-            try:
-                summary = self.get_user_summary(cookies)
-                with self.lock:
-                    self.state.user = summary
-            except Exception as exc:
-                self.log(f"Failed to update user information: {exc}")
+            self.refresh_user_summary(cookies, "before purchases")
 
             self.log("Collecting current points.")
             points = self.get_seed_bonus(cookies, mam_uid)
@@ -834,6 +938,13 @@ class App:
                 run_points_spent = max(initial_points - points, 0)
                 points_end = points
                 self.update_totals(0, run_points_spent, fl_wedges_purchased, vip_purchased)
+                self.refresh_user_summary_after_purchase(
+                    cookies,
+                    run_points_spent,
+                    fl_wedges_purchased,
+                    vip_purchased,
+                    0,
+                )
                 self.log("FL-only mode enabled; skipping upload GB purchases.")
                 self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
                 return
@@ -842,6 +953,13 @@ class App:
                 run_points_spent = max(initial_points - points, 0)
                 points_end = points
                 self.update_totals(0, run_points_spent, fl_wedges_purchased, vip_purchased)
+                self.refresh_user_summary_after_purchase(
+                    cookies,
+                    run_points_spent,
+                    fl_wedges_purchased,
+                    vip_purchased,
+                    0,
+                )
                 self.log("Alternate mode target was Freeleech Wedge; skipping upload credit this run.")
                 self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
                 return
@@ -850,31 +968,43 @@ class App:
                 run_points_spent = max(initial_points - points, 0)
                 points_end = points
                 self.update_totals(0, run_points_spent, fl_wedges_purchased, vip_purchased)
+                self.refresh_user_summary_after_purchase(
+                    cookies,
+                    run_points_spent,
+                    fl_wedges_purchased,
+                    vip_purchased,
+                    0,
+                )
                 self.log("Buy Upload Credit is off; skipping upload credit purchases.")
                 self.log_summary(vip_purchased, fl_wedges_purchased, 0, run_points_spent)
                 return
 
-            upload_purchase_threshold = max(MIN_POINTS_FOR_PURCHASE, POINTS_PER_BLOCK + settings.points_buffer)
-            if points < upload_purchase_threshold:
+            available_for_upload = max(0, points - settings.points_buffer)
+            upload_blocks = min(MAX_UPLOAD_BLOCKS_PER_RUN, available_for_upload // POINTS_PER_BLOCK)
+            upload_points_spent = upload_blocks * POINTS_PER_BLOCK
+            upload_gb = upload_blocks * GB_PER_BLOCK
+            if upload_blocks <= 0:
+                upload_purchase_threshold = POINTS_PER_BLOCK + settings.points_buffer
                 self.log(
                     f"Not enough points ({points:,}). Need at least {upload_purchase_threshold:,} "
                     f"to purchase {GB_PER_BLOCK} GiB while keeping a {settings.points_buffer:,}-point buffer."
                 )
             else:
                 self.log(
-                    f"{points:,} points available. Purchasing {GB_PER_BLOCK} GiB "
-                    f"of upload for {POINTS_PER_BLOCK:,} points while keeping "
-                    f"a {settings.points_buffer:,}-point buffer."
+                    f"{points:,} points available. Purchasing {upload_gb} GiB "
+                    f"of upload for {upload_points_spent:,} points while keeping "
+                    f"a {settings.points_buffer:,}-point buffer. Upload run cap is "
+                    f"{MAX_UPLOAD_POINTS_PER_RUN:,} points."
                 )
-                self.mam_json(POINTS_URL + str(GB_PER_BLOCK), cookies)
-                points -= POINTS_PER_BLOCK
+                self.mam_json(POINTS_URL + str(upload_gb), cookies)
+                points -= upload_points_spent
                 points_end = points
-                actual_purchased_gb = GB_PER_BLOCK
+                actual_purchased_gb = upload_gb
                 self.add_spend_event(
                     "upload_credit",
                     "Upload Credit",
-                    POINTS_PER_BLOCK,
-                    GB_PER_BLOCK,
+                    upload_points_spent,
+                    upload_gb,
                     "GiB",
                     points,
                 )
@@ -885,6 +1015,13 @@ class App:
             run_points_spent = max(initial_points - points, 0)
             points_end = points
             self.update_totals(actual_purchased_gb, run_points_spent, fl_wedges_purchased, vip_purchased)
+            self.refresh_user_summary_after_purchase(
+                cookies,
+                run_points_spent,
+                fl_wedges_purchased,
+                vip_purchased,
+                actual_purchased_gb,
+            )
             self.log_summary(vip_purchased, fl_wedges_purchased, actual_purchased_gb, run_points_spent)
         except Exception as exc:
             self.log(f"An unexpected error occurred: {exc}")
@@ -960,6 +1097,27 @@ class App:
             uploaded=str(data.get("uploaded") or "N/A"),
             ratio=str(data.get("ratio") or "N/A"),
         )
+
+    def refresh_user_summary(self, cookies: dict[str, str], context: str) -> None:
+        try:
+            summary = self.get_user_summary(cookies)
+            with self.lock:
+                self.state.user = summary
+                self.save()
+            self.log(f"User section refreshed {context}.")
+        except Exception as exc:
+            self.log(f"Failed to update user information {context}: {exc}")
+
+    def refresh_user_summary_after_purchase(
+        self,
+        cookies: dict[str, str],
+        points_spent: int,
+        wedges: int,
+        vip_purchased: bool,
+        upload_gb: int,
+    ) -> None:
+        if points_spent > 0 or wedges > 0 or vip_purchased or upload_gb > 0:
+            self.refresh_user_summary(cookies, "after purchases")
 
     @staticmethod
     def first_value(data: dict[str, Any], *names: str) -> str:
@@ -1226,6 +1384,8 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "MAMSpenderWeb/1.0"
 
     def do_GET(self) -> None:
+        if not self.request_allowed():
+            return
         if self.path == "/api/state":
             self.write_json(APP.public_state())
             return
@@ -1239,6 +1399,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        if not self.request_allowed():
+            return
         try:
             data = self.read_json()
             if self.path == "/api/settings":
@@ -1306,6 +1468,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def request_allowed(self) -> bool:
+        client_ip = self.client_address[0] if self.client_address else ""
+        if APP.client_allowed(client_ip):
+            return True
+        APP.log(f"Blocked request from IP not in Allowed IPs: {client_ip}.")
+        self.write_json({"error": "This IP address is not allowed to access MAM Spender Web."}, HTTPStatus.FORBIDDEN)
+        return False
 
     def log_message(self, fmt: str, *args: Any) -> None:
         return

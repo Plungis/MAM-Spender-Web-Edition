@@ -5,8 +5,8 @@ let bonusHistoryPage = 1;
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat();
-const settingIds = ["buyVip", "buyUploadCredit", "flOnly", "alternateFlUpload", "themeName", "pointsBuffer", "delayMinutes", "serverPort", "cookiePath"];
-const maxPointsBuffer = 49000;
+const settingIds = ["buyVip", "buyUploadCredit", "flOnly", "alternateFlUpload", "themeName", "pointsBuffer", "delayMinutes", "serverHost", "serverPort", "allowedIps", "cookiePath"];
+const maxPointsBuffer = 25000;
 const minServerPort = 1024;
 const maxServerPort = 65535;
 const categoryLabels = {
@@ -14,7 +14,7 @@ const categoryLabels = {
   freeleech_wedge: "Freeleech Wedge",
   vip: "VIP Renewal"
 };
-const pointsPerPurchase = 50000;
+const pointsPerPurchase = 25000;
 
 function formatCountdown(seconds) {
   if (seconds === null || seconds === undefined) return "Not scheduled";
@@ -474,7 +474,9 @@ function renderSettings() {
   applyTheme(state.settings.theme || "green");
   $("pointsBuffer").value = state.settings.points_buffer;
   $("delayMinutes").value = state.settings.next_run_delay_minutes;
+  $("serverHost").value = state.settings.server_host;
   $("serverPort").value = state.settings.server_port;
+  $("allowedIps").value = state.settings.allowed_ips || "";
   $("cookiePath").value = state.settings.cookie_file_path;
 }
 
@@ -511,15 +513,37 @@ function renderAlternateStatus() {
 
 function renderPortStatus() {
   const activePort = state.active_port || state.constants?.default_server_port || 8765;
+  const activeHost = state.active_host || state.constants?.default_server_host || "127.0.0.1";
+  const savedHost = settingsAreBeingEdited()
+    ? ($("serverHost").value || "127.0.0.1").trim()
+    : state.settings.server_host;
   const savedPort = settingsAreBeingEdited()
     ? clampNumber($("serverPort").value, minServerPort, maxServerPort)
     : state.settings.server_port;
+  const hostMessage = savedHost !== activeHost
+    ? `Current server host: ${activeHost}. Saved host ${savedHost} will be used after restart.`
+    : `Current server host: ${activeHost}.`;
+  $("hostStatus").textContent = state.host_from_env
+    ? `${hostMessage} MAM_SPENDER_HOST is set and may override saved host settings.`
+    : hostMessage;
   if (savedPort !== activePort) {
     $("portStatus").textContent =
       `Current server port: ${activePort}. Saved port ${savedPort} will be used after restart.`;
     return;
   }
   $("portStatus").textContent = `Current server port: ${activePort}.`;
+}
+
+function renderAccessStatus() {
+  const savedAllowlist = settingsAreBeingEdited()
+    ? ($("allowedIps").value || "").trim()
+    : state.settings.allowed_ips;
+  const accessText = savedAllowlist
+    ? `Only localhost and these IPs/ranges can access the app: ${savedAllowlist}.`
+    : "Blank allowlist means any device that can reach this server can open the app.";
+  $("allowedIpsStatus").textContent = state.allowed_ips_from_env
+    ? `${accessText} MAM_SPENDER_ALLOWED_IPS is set and may override saved allowlist settings.`
+    : accessText;
 }
 
 function renderRunOverview() {
@@ -535,7 +559,7 @@ function renderRunOverview() {
 
 function renderReleaseStatus() {
   const release = state.release_status || {};
-  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.3.1";
+  $("appVersionLabel").textContent = release.current_label || state.app_version_label || "Web Edition V1.4.0";
   const status = $("releaseStatus");
   status.className = `release-status ${release.status || "checking"}`;
   const message = release.message || "Checking latest release...";
@@ -562,6 +586,9 @@ function render(next) {
   $("pointsPerMin").textContent = state.points_per_min === null || state.points_per_min === undefined
     ? "N/A"
     : Number(state.points_per_min).toFixed(1);
+  $("pointsPerHour").textContent = state.points_per_min === null || state.points_per_min === undefined
+    ? "N/A"
+    : fmt.format(Math.round(Number(state.points_per_min) * 60));
 
   $("totalGb").textContent = fmt.format(state.totals.cumulative_upload_gb);
   $("totalPoints").textContent = fmt.format(state.totals.cumulative_points_spent);
@@ -574,6 +601,7 @@ function render(next) {
   renderSettings();
   renderRunOverview();
   renderPortStatus();
+  renderAccessStatus();
   renderAlternateStatus();
   renderReleaseStatus();
   $("browseCookiePathBtn").disabled = !state.file_dialogs_enabled;
@@ -658,7 +686,9 @@ function readSettings() {
     theme: $("themeName").value,
     points_buffer: clampNumber($("pointsBuffer").value, 0, maxPointsBuffer),
     next_run_delay_minutes: Number($("delayMinutes").value || 15),
+    server_host: $("serverHost").value,
     server_port: clampNumber($("serverPort").value, minServerPort, maxServerPort),
+    allowed_ips: $("allowedIps").value,
     cookie_file_path: $("cookiePath").value
   };
 }
@@ -668,7 +698,7 @@ function renderDelayEfficiency() {
     const minutes = Number(item.dataset.pphFor || 0);
     const pointsPerHour = minutes > 0 ? pointsPerPurchase / (minutes / 60) : 0;
     item.textContent = `${formatCompactNumber(pointsPerHour)}/hr`;
-    item.title = `${fmt.format(Math.round(pointsPerHour))} points per hour to refill one 50,000-point spend cycle`;
+    item.title = `${fmt.format(Math.round(pointsPerHour))} points per hour to refill one 25,000-point upload spend cycle`;
   });
 }
 
@@ -795,6 +825,7 @@ settingIds.forEach((id) => {
     }
     if (state) renderAlternateStatus();
     if (state) renderPortStatus();
+    if (state) renderAccessStatus();
     if (state) renderRunOverview();
   });
   element.addEventListener("change", () => {
@@ -808,6 +839,7 @@ settingIds.forEach((id) => {
     }
     if (state) renderAlternateStatus();
     if (state) renderPortStatus();
+    if (state) renderAccessStatus();
     if (state) renderRunOverview();
   });
 });

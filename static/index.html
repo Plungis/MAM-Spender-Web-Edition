@@ -12,7 +12,7 @@
         <div class="brand-block">
           <h1>MAM SPENDER - WEB EDITION</h1>
           <p class="version-line">
-            <span id="appVersionLabel">Web Edition V1.3.1</span>
+            <span id="appVersionLabel">Web Edition V1.4.0</span>
             <span>|</span>
             <a href="https://github.com/Plungis/MAM-Spender" target="_blank" rel="noreferrer">(See Windows Executable Version 2.4 here)</a>
           </p>
@@ -32,12 +32,36 @@
       </section>
 
       <div class="tab-strip">
-        <nav class="tabs" aria-label="Views">
-          <button class="tab active" data-tab="dashboard">Dashboard</button>
-          <button class="tab" data-tab="graph">Graph</button>
-          <button class="tab" data-tab="history">History</button>
-          <button class="tab" data-tab="mamData">All MAM Data</button>
-        </nav>
+        <div class="tab-strip-top">
+          <nav class="tabs" aria-label="Views">
+            <button class="tab active" data-tab="dashboard">Dashboard</button>
+            <button class="tab" data-tab="graph">Graph</button>
+            <button class="tab" data-tab="history">History</button>
+            <button class="tab" data-tab="mamData">All MAM Data</button>
+          </nav>
+          <div class="theme-control" aria-label="Theme">
+            <span class="theme-control-label">Theme</span>
+            <div class="theme-picker" role="group" aria-label="Theme">
+              <button type="button" class="theme-option active" data-theme-value="green">
+                <span class="theme-toggle-switch" aria-hidden="true"></span>
+                <span>Green</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="ember">
+                <span class="theme-toggle-switch" aria-hidden="true"></span>
+                <span>Ember</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="modern">
+                <span class="theme-toggle-switch" aria-hidden="true"></span>
+                <span>Modern</span>
+              </button>
+              <button type="button" class="theme-option" data-theme-value="mouse">
+                <span class="theme-toggle-switch" aria-hidden="true"></span>
+                <span>Mouse</span>
+              </button>
+            </div>
+            <input id="themeName" type="hidden" value="green">
+          </div>
+        </div>
         <div class="marquee" aria-label="MAM timers and server time">
           <div id="infoMarquee" class="marquee-track">Loading MAM timers...</div>
         </div>
@@ -59,6 +83,7 @@
             <div><dt>Ratio</dt><dd id="ratio">N/A</dd></div>
             <div><dt>Last Points</dt><dd id="lastPoints">N/A</dd></div>
             <div><dt>Points/Min</dt><dd id="pointsPerMin">N/A</dd></div>
+            <div><dt>Points/Hr</dt><dd id="pointsPerHour">N/A</dd></div>
           </dl>
         </article>
 
@@ -78,7 +103,7 @@
         </article>
 
         <article class="panel">
-          <h2>Settings</h2>
+          <h2>Purchase Settings</h2>
           <div class="setting-row">
             <label class="toggle-line">
               <input id="buyVip" type="checkbox" checked>
@@ -112,35 +137,12 @@
             <button type="button" class="save-setting-btn purchase-save-btn">Save Purchase Settings</button>
           </div>
 
-          <label class="field theme-field">
-            <span>Theme</span>
-            <div class="theme-picker" role="group" aria-label="Theme">
-              <button type="button" class="theme-option active" data-theme-value="green">
-                <span class="theme-swatch green-swatch" aria-hidden="true"></span>
-                <span>Green</span>
-              </button>
-              <button type="button" class="theme-option" data-theme-value="ember">
-                <span class="theme-swatch ember-swatch" aria-hidden="true"></span>
-                <span>Ember</span>
-              </button>
-              <button type="button" class="theme-option" data-theme-value="modern">
-                <span class="theme-swatch modern-swatch" aria-hidden="true"></span>
-                <span>Modern</span>
-              </button>
-              <button type="button" class="theme-option" data-theme-value="mouse">
-                <span class="theme-swatch mouse-swatch" aria-hidden="true"></span>
-                <span>Mouse</span>
-              </button>
-            </div>
-            <input id="themeName" type="hidden" value="green">
-          </label>
-
           <label class="field">
             <span>Points buffer</span>
             <div class="setting-row number-setting-row">
               <div class="number-control">
                 <button type="button" class="step-btn" data-target="pointsBuffer" data-step="-500">-</button>
-                <input id="pointsBuffer" type="number" min="0" max="49000" step="100" value="10000">
+                <input id="pointsBuffer" type="number" min="0" max="25000" step="100" value="10000">
                 <button type="button" class="step-btn" data-target="pointsBuffer" data-step="500">+</button>
               </div>
               <button type="button" class="save-setting-btn">Save</button>
@@ -148,9 +150,10 @@
             <div class="quick-row">
               <button type="button" class="quick-btn" data-target="pointsBuffer" data-value="10000">10k</button>
               <button type="button" class="quick-btn" data-target="pointsBuffer" data-value="15000">15k</button>
+              <button type="button" class="quick-btn" data-target="pointsBuffer" data-value="20000">20k</button>
               <button type="button" class="quick-btn" data-target="pointsBuffer" data-value="25000">25k</button>
-              <button type="button" class="quick-btn" data-target="pointsBuffer" data-value="49000">49k</button>
             </div>
+            <p class="small">Upload buys require 25,000 points plus the buffer you set here.</p>
           </label>
           <label class="field">
             <span>Next run delay (minutes)</span>
@@ -180,6 +183,19 @@
               </button>
             </div>
           </label>
+        </article>
+
+        <article class="panel">
+          <h2>Server Settings</h2>
+          <label class="field">
+            <span>Server host / IP</span>
+            <div class="setting-row number-setting-row">
+              <input id="serverHost" type="text" value="127.0.0.1">
+              <button type="button" class="save-setting-btn">Save</button>
+            </div>
+            <p class="small" id="hostStatus">Current server host: 127.0.0.1.</p>
+            <p class="small warning-text">LAN or wildcard hosts such as 0.0.0.0 expose this web app to other devices that can reach your server.</p>
+          </label>
           <label class="field">
             <span>Server port</span>
             <div class="setting-row number-setting-row">
@@ -191,6 +207,13 @@
               <button type="button" class="save-setting-btn">Save</button>
             </div>
             <p class="small" id="portStatus">Current server port: 8765.</p>
+          </label>
+          <label class="field">
+            <span>Allowed IPs</span>
+            <textarea id="allowedIps" rows="3" placeholder="Blank allows any reachable IP. Example: 192.168.1.25, 192.168.1.0/24"></textarea>
+            <p class="small">Optional comma-separated IPs or CIDR ranges. Localhost is always allowed.</p>
+            <p class="small" id="allowedIpsStatus"></p>
+            <button type="button" class="save-setting-btn">Save</button>
           </label>
         </article>
 
@@ -360,6 +383,7 @@
 
           <h3>Step 1: Create A Valid Cookie</h3>
           <p>You must do this on the same device that runs MAM Spender Web.</p>
+          <p>MAM also has a helpful forum explanation of session IDs: <a href="https://www.myanonamouse.net/f/t/91633" target="_blank" rel="noreferrer">Session_ID forum guide</a>.</p>
           <ol>
             <li>Log into <a href="https://www.myanonamouse.net" target="_blank" rel="noreferrer">myanonamouse.net</a>.</li>
             <li>Open Menu, then Preferences, then Security.</li>
@@ -380,6 +404,8 @@
           <h3>Notes &amp; Warnings</h3>
           <ul>
             <li>Minimum upload purchase is 50 GiB.</li>
+            <li>Upload credit costs 25,000 points per 50 GiB block.</li>
+            <li>Upload credit purchases are capped at 150 GiB per run.</li>
             <li>Purchases are irreversible.</li>
             <li>Points are always rounded down.</li>
             <li>Freeleech Wedges cost 50,000 points each.</li>
@@ -388,6 +414,7 @@
           </ul>
           <div class="actions left">
             <a class="linkBtn" href="https://www.myanonamouse.net/preferences/index.php?view=security" target="_blank" rel="noreferrer">Open MAM Security</a>
+            <a class="linkBtn" href="https://www.myanonamouse.net/f/t/91633" target="_blank" rel="noreferrer">Session_ID Guide</a>
           </div>
         </div>
       </div>

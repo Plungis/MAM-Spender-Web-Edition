@@ -103,6 +103,7 @@ body[data-theme="modern"] h2,
 body[data-theme="modern"] button,
 body[data-theme="modern"] .linkBtn,
 body[data-theme="modern"] input,
+body[data-theme="modern"] textarea,
 body[data-theme="modern"] table,
 body[data-theme="modern"] #logBox,
 body[data-theme="modern"] .instructions-body {
@@ -208,6 +209,10 @@ h2::after {
   text-shadow: 0 0 8px rgba(var(--soft-rgb), 0.16);
 }
 
+.warning-text {
+  color: var(--warning);
+}
+
 .brand-block {
   min-width: min(420px, 100%);
 }
@@ -275,7 +280,7 @@ h2::after {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
+  margin: 0;
 }
 
 .tab-strip {
@@ -283,7 +288,11 @@ h2::after {
   margin-bottom: 16px;
 }
 
-.tab-strip .tabs {
+.tab-strip-top {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 10px;
 }
 
@@ -580,6 +589,7 @@ dd {
 input[type="text"],
 input[type="number"],
 input[type="password"],
+textarea,
 select {
   width: 100%;
   min-height: 38px;
@@ -590,6 +600,11 @@ select {
   padding: 8px 10px;
   font: inherit;
   box-shadow: inset 0 0 14px rgba(var(--glow-rgb), 0.05);
+}
+
+textarea {
+  min-height: 84px;
+  resize: vertical;
 }
 
 select {
@@ -607,18 +622,35 @@ select {
 }
 
 .theme-picker {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.theme-control {
+  display: flex;
+  flex: 0 1 480px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 38px;
+}
+
+.theme-control-label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .theme-option {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 7px;
   min-height: 34px;
-  padding: 6px 8px;
+  min-width: 96px;
+  padding: 5px 9px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -627,6 +659,41 @@ select {
   border-color: var(--accent-strong);
   color: var(--accent-strong);
   box-shadow: 0 0 14px rgba(var(--glow-rgb), 0.14), inset 0 0 14px rgba(var(--glow-rgb), 0.08);
+}
+
+.theme-toggle-switch {
+  position: relative;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 18px;
+  border: 1px dashed var(--dim);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 10px rgba(var(--glow-rgb), 0.08);
+}
+
+.theme-toggle-switch::after {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 7px rgba(var(--glow-rgb), 0.25);
+  content: "";
+  transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.theme-option.active .theme-toggle-switch {
+  border-color: var(--accent-strong);
+  background: rgba(var(--glow-rgb), 0.12);
+}
+
+.theme-option.active .theme-toggle-switch::after {
+  transform: translateX(14px);
+  background: var(--accent-strong);
+  box-shadow: 0 0 10px rgba(var(--soft-rgb), 0.34);
 }
 
 .chart-controls {
@@ -647,29 +714,6 @@ select {
   border-color: var(--accent-strong);
   color: var(--accent-strong);
   box-shadow: 0 0 14px rgba(var(--glow-rgb), 0.14), inset 0 0 14px rgba(var(--glow-rgb), 0.08);
-}
-
-.theme-swatch {
-  width: 12px;
-  height: 12px;
-  border: 1px solid rgba(var(--soft-rgb), 0.75);
-  box-shadow: 0 0 8px rgba(var(--glow-rgb), 0.22);
-}
-
-.green-swatch {
-  background: #39ff66;
-}
-
-.ember-swatch {
-  background: #ff5a2d;
-}
-
-.modern-swatch {
-  background: #2563eb;
-}
-
-.mouse-swatch {
-  background: #f5a3c7;
 }
 
 .number-control {
@@ -1038,7 +1082,8 @@ tr:last-child td {
 
 button:focus-visible,
 .linkBtn:focus-visible,
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -1064,8 +1109,23 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .tab-strip-top,
+  .theme-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .theme-control {
+    flex-basis: auto;
+  }
+
+  .theme-picker {
+    width: 100%;
+  }
+
   .tab,
-  .tabs button {
+  .tabs button,
+  .theme-option {
     width: 100%;
   }
 
