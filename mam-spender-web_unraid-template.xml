@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>mam-spender-web</Name>
+  <Repository>ghcr.io/plungis/mam-spender-web-edition:latest</Repository>
+  <Registry>https://github.com/users/Plungis/packages/container/package/mam-spender-web-edition</Registry>
+  <Network>custom</Network>
+  <MyIP></MyIP>
+  <MyMAC/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Plungis/MAM-Spender-Web-Edition/issues</Support>
+  <Project>https://github.com/Plungis/MAM-Spender-Web-Edition</Project>
+  <ReadMe/>
+  <Overview>Behavior&#13;
+Checks your MAM account using your Mam Session_ID.&#13;
+Buys exactly 100 GiB upload credit for 50,000 points when your balance is at least 51,000 points.&#13;
+Default scan interval is 15 minutes.&#13;
+Minimum allowed scan interval is 2 minutes.&#13;
+Points buffer is capped at 49,000 so it cannot exceed the 50,000-point purchase cost.&#13;
+Local server port is customizable from 1024 to 65535. Port changes apply after restarting the app.&#13;
+Optional VIP renewal at 83 days remaining or less, enabled by default.&#13;
+Optional Freeleech Wedge purchase before upload credit, or Freeleech-only mode.&#13;
+Tracks cumulative upload GiB, cumulative points spent, last scan points, and points per minute.&#13;
+Keeps a local History tab of past runs.&#13;
+Plots each recorded spending event by category in the Graph tab.&#13;
+Tracks Freeleech Wedges bought with points and points spent on wedges.</Overview>
+  <Category/>
+  <WebUI>http://[IP]:[PORT:59777]</WebUI>
+  <TemplateURL/>
+  <Icon/>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1782563480</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Mam Session_ID&#13;
+Open MAM Security from the app, create a session, copy the long Session_ID value, paste it into the Mam Session_ID panel, and click Save Session_ID.&#13;
+&#13;
+When saving a pasted Session_ID, the app asks whether you want to save it as a cookie file or store it locally in the app settings as plain text. A cookie file is recommended. Keep either option private.&#13;
+&#13;
+No cookie file path is set by default. Once you enter one or save a new file, the app saves and reuses it.&#13;
+&#13;
+You can also point the Mam Session_ID file path at an existing file. The app will try to extract the Session_ID from:&#13;
+&#13;
+A raw Session_ID value&#13;
+mam_id=... or a full Cookie: header&#13;
+Netscape/curl cookie export files&#13;
+JSON browser cookie exports with name: "mam_id" and value: "..."&#13;
+Use Check File to confirm the path can be read before starting the schedule.&#13;
+&#13;
+Use Browse File to open a native file picker and save the selected cookie/export path automatically.</Requires>
+  <Config Name="MAM_SPENDER_PORT" Target="8765" Default="8765" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">8765</Config>
+  <Config Name="data" Target="/app/data" Default="/mnt/user/appdata/mam-spender-web" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="MAM_SPENDER_HOST" Target="MAM_SPENDER_HOST" Default="0.0.0.0" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false">0.0.0.0</Config>
+  <Config Name="MAM_SPENDER_OPEN_BROWSER" Target="MAM_SPENDER_OPEN_BROWSER" Default="0" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false">0</Config>
+  <Config Name="MAM_SPENDER_FILE_DIALOGS" Target="MAM_SPENDER_FILE_DIALOGS" Default="0" Mode="" Description="" Type="Variable" Display="always" Required="false" Mask="false">0</Config>
+  <TailscaleStateDir/>
+</Container>
